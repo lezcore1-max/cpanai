@@ -31,8 +31,8 @@ USE_CASES: dict[str, UseCasePolicy] = {
         description="External, real-time customer support assistant.",
         pipeline_position="Pre-response gate (blocking) — checked before the answer reaches the customer.",
         latency_budget_ms=800,
-        weights={"responsibility": 0.45, "performance": 0.45, "cost": 0.10},
-        thresholds={"block": 65, "human": 45, "fix": 25},
+        weights={"responsibility": 0.40, "performance": 0.40, "cost": 0.20},
+        thresholds={"block": 65, "human": 45, "fix": 20},
         cost_budget_tokens=220,
     ),
     "copilot": UseCasePolicy(

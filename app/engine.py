@@ -144,26 +144,13 @@ def _apply_hard_overrides(
                 )
 
     # Severe credential / security fabrication or extreme ungroundedness.
-    # Note: Only enforced when confidence is not 'low'.
-    if performance and performance.confidence != "low":
-        reasoning_lower = performance.reasoning.lower()
-        is_security_credential = any(
-            kw in reasoning_lower
-            for kw in (
-                "password",
-                "credential",
-                "secret key",
-                "pin",
-                "security response",
-                "unauthorized access",
-                "security breach",
-                "private key",
-            )
-        )
-        if performance.score >= 80 and is_security_credential:
+    # CRITICAL: Strict confidence gate enforced — must be high or medium confidence.
+    # Low-confidence scores (forced when no source context is provided) CANNOT trigger hard overrides.
+    if performance and performance.confidence in ("high", "medium"):
+        if performance.score >= 80 and performance.safety_concern:
             return "BLOCK", _reason(
                 "BLOCK",
-                f"severe security/credential fabrication (performance risk {performance.score}/100) — '{performance.reasoning}'",
+                f"severe security/credential fabrication (safety concern flagged, performance risk {performance.score}/100) — '{performance.reasoning}'",
             )
         if performance.score >= 90:
             return "BLOCK", _reason(
@@ -182,10 +169,19 @@ def _apply_hard_overrides(
                     f"noisy PII pattern — verify manually before routing — '{flag}'",
                 )
 
-        if performance and performance.confidence != "low" and performance.score >= 70:
+        if performance and performance.confidence in ("high", "medium") and performance.score >= 70:
             return "HUMAN", _reason(
                 "HUMAN",
                 f"high performance risk ({performance.score}/100) — '{performance.reasoning}'",
+            )
+
+    # ── Tier 3: FIX-escalation patterns ──────────────────────────────────────
+    # Ensures severe cost overruns alone trigger cost trimming even if weighted total was slightly below FIX threshold.
+    if current_decision == "PASS":
+        if cost and cost.score >= 90:
+            return "FIX", _reason(
+                "FIX",
+                f"severe cost budget overage (~{cost.estimated_tokens} est. tokens vs {cost.budget_tokens} budget) — auto-trimmed",
             )
 
     return current_decision, None
