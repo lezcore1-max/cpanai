@@ -75,7 +75,7 @@ def _build_reasoning(result, policy) -> str:
 def _build_fix(payload: InspectRequest, result) -> FixOut | None:
     if result.decision != "FIX":
         return None
-    fix_result = apply_fix(payload.response, result.responsibility, result.cost)
+    fix_result = apply_fix(payload.response, result.responsibility, result.cost, result.performance)
     if fix_result:
         return FixOut(method=fix_result.method, before=fix_result.before, after=fix_result.after)
     return None

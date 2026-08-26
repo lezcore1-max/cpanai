@@ -80,13 +80,14 @@ class InspectionResult:
 
 def _apply_hard_overrides(
     responsibility: ResponsibilityResult,
+    performance: PerformanceResult,
     current_decision: str,
     policy: UseCasePolicy,
 ) -> tuple[str, str | None]:
     """
-    Runs after weighted scoring. Checks flags against the independently-
-    disqualifying sets defined in responsibility.py and overrides the
-    decision if any are matched.
+    Runs after weighted scoring. Checks flags and performance risk against
+    independently-disqualifying rules defined in responsibility.py and performance
+    checks, overriding the decision if any are matched.
 
     Invariants enforced:
     1. No downgrade: a BLOCK can never be demoted to HUMAN by this function.
@@ -133,14 +134,6 @@ def _apply_hard_overrides(
 
     # Protected characteristic linked to outcome is independently disqualifying
     # only when policy.key == "decision" (credit/loan underwriting).
-    #
-    # In chatbot and copilot use cases the same flag routes through the normal
-    # weighted score rather than hard-blocking. This is a deliberate policy
-    # choice: those contexts have different regulatory exposure (no ECOA/FHA
-    # obligation on a customer chatbot or internal assistant), and a hard BLOCK
-    # there would be disproportionate and harder to explain to reviewers.
-    # If that assumption changes, add the key to AUTO_BLOCK_FLAGS_DECISION or
-    # extend this condition — don't paper over it with a global BLOCK.
     if policy.key == "decision":
         for flag in responsibility.flags:
             if any(auto_flag in flag for auto_flag in AUTO_BLOCK_FLAGS_DECISION):
@@ -150,11 +143,37 @@ def _apply_hard_overrides(
                     f"(ECOA/FHA) — '{flag}'",
                 )
 
+    # Severe credential / security fabrication or extreme ungroundedness.
+    # Note: Only enforced when confidence is not 'low'.
+    if performance and performance.confidence != "low":
+        reasoning_lower = performance.reasoning.lower()
+        is_security_credential = any(
+            kw in reasoning_lower
+            for kw in (
+                "password",
+                "credential",
+                "secret key",
+                "pin",
+                "security response",
+                "unauthorized access",
+                "security breach",
+                "private key",
+            )
+        )
+        if performance.score >= 80 and is_security_credential:
+            return "BLOCK", _reason(
+                "BLOCK",
+                f"severe security/credential fabrication (performance risk {performance.score}/100) — '{performance.reasoning}'",
+            )
+        if performance.score >= 90:
+            return "BLOCK", _reason(
+                "BLOCK",
+                f"extreme ungroundedness/hallucination (performance risk {performance.score}/100) — '{performance.reasoning}'",
+            )
+
     # ── Tier 2: HUMAN-escalation patterns ────────────────────────────────────
     # Gated on current_decision not already being BLOCK or HUMAN — this is the
     # explicit no-downgrade guard. A score-based BLOCK is never demoted here.
-    # A score-based HUMAN stays HUMAN but gains no override_reason (the noisy
-    # pattern contributed to the score path; no additional routing change).
     if current_decision not in ("BLOCK", "HUMAN"):
         for flag in responsibility.flags:
             if any(auto_flag in flag for auto_flag in AUTO_HUMAN_FLAGS):
@@ -162,6 +181,12 @@ def _apply_hard_overrides(
                     "HUMAN",
                     f"noisy PII pattern — verify manually before routing — '{flag}'",
                 )
+
+        if performance and performance.confidence != "low" and performance.score >= 70:
+            return "HUMAN", _reason(
+                "HUMAN",
+                f"high performance risk ({performance.score}/100) — '{performance.reasoning}'",
+            )
 
     return current_decision, None
 
@@ -288,7 +313,7 @@ async def inspect(
 
     # Hard-override layer: runs after scoring, changes decision only.
     # total_score is preserved so the audit log remains meaningful.
-    decision, override_reason = _apply_hard_overrides(responsibility, decision, policy)
+    decision, override_reason = _apply_hard_overrides(responsibility, performance, decision, policy)
 
     return InspectionResult(
         decision=decision,
