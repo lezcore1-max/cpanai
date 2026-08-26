@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ControlPlane — Risk Inspection Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div>
+        <h1>ControlPlane</h1>
+        <div class="tagline">REAL-TIME RISK INSPECTION LAYER · LIVE API</div>
+      </div>
+    </div>
+    <div class="status-pill" id="apiStatus"><div class="status-dot"></div> Connecting…</div>
+  </header>
+
+  <div class="usecase-row" id="ucRow"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="panel-title">Inspect a response</div>
+      <label>User question</label>
+      <input type="text" id="question" placeholder="What the user asked the AI">
+      <label>Source context (optional)</label>
+      <textarea id="context" rows="3" placeholder="Reference doc, policy, or knowledge base excerpt"></textarea>
+      <label>AI's response (what gets inspected)</label>
+      <textarea id="response" rows="5" placeholder="Paste the AI-generated answer here"></textarea>
+      <div class="sample-row" id="sampleRow"></div>
+      <button class="run-btn" id="runBtn">▶ Run inspection</button>
+      <div class="policy-note" id="policyNote"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Inspection pipeline</div>
+      <div class="pipeline">
+        <div class="connector" style="left:17%; width:33%;"></div>
+        <div class="connector" style="left:50%; width:33%;"></div>
+        <div class="node">
+          <div class="node-circle" id="circ-resp">📥</div>
+          <div class="node-label">Responsibility<br>(PII / bias)</div>
+          <div class="node-score" id="score-resp">—</div>
+        </div>
+        <div class="node">
+          <div class="node-circle" id="circ-perf">🧠</div>
+          <div class="node-label">Performance<br>(groundedness)</div>
+          <div class="node-score" id="score-perf">—</div>
+        </div>
+        <div class="node">
+          <div class="node-circle" id="circ-cost">💰</div>
+          <div class="node-label">Cost<br>(vs. budget)</div>
+          <div class="node-score" id="score-cost">—</div>
+        </div>
+      </div>
+      <div class="decision-badge" id="decisionBadge">AWAITING INPUT</div>
+      <div class="reasoning-box" id="reasoningBox">Fill in a response on the left and run an inspection.</div>
+      <div id="fixPanel"></div>
+    </div>
+
+    <div class="log-wrap panel">
+      <div class="panel-title">
+        Audit trail &amp; metrics
+        <button class="clear-btn" id="clearBtn">Clear log</button>
+      </div>
+      <div class="metrics-row" id="metricsRow"></div>
+      <div id="logTableWrap"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
