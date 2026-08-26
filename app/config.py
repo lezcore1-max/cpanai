@@ -32,7 +32,7 @@ USE_CASES: dict[str, UseCasePolicy] = {
         pipeline_position="Pre-response gate (blocking) — checked before the answer reaches the customer.",
         latency_budget_ms=800,
         weights={"responsibility": 0.40, "performance": 0.40, "cost": 0.20},
-        thresholds={"block": 65, "human": 45, "fix": 20},
+        thresholds={"block": 60, "human": 30, "fix": 15},
         cost_budget_tokens=220,
     ),
     "copilot": UseCasePolicy(
@@ -42,7 +42,7 @@ USE_CASES: dict[str, UseCasePolicy] = {
         pipeline_position="Inline middleware (parallel, non-blocking) — checks run alongside response streaming.",
         latency_budget_ms=3000,
         weights={"performance": 0.50, "responsibility": 0.30, "cost": 0.20},
-        thresholds={"block": 80, "human": 60, "fix": 35},
+        thresholds={"block": 75, "human": 45, "fix": 15},
         cost_budget_tokens=700,
     ),
     "decision": UseCasePolicy(

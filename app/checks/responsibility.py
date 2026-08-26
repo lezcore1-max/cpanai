@@ -111,6 +111,8 @@ AUTO_BLOCK_FLAGS: frozenset[str] = frozenset({
 # a false BLOCK harms more than routing a human to verify).
 AUTO_HUMAN_FLAGS: frozenset[str] = frozenset({
     "Possible SSN (9-digit run — verify manually)",
+    "Protected characteristic linked to risk or outcome",
+    "Proxy-discrimination pattern (group characteristic used as individual risk proxy)",
 })
 
 # Regulated-context-only overrides: independently disqualifying only when the

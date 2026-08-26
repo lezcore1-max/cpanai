@@ -81,6 +81,7 @@ class InspectionResult:
 def _apply_hard_overrides(
     responsibility: ResponsibilityResult,
     performance: PerformanceResult,
+    cost: CostResult,
     current_decision: str,
     policy: UseCasePolicy,
 ) -> tuple[str, str | None]:
@@ -143,20 +144,20 @@ def _apply_hard_overrides(
                     f"(ECOA/FHA) — '{flag}'",
                 )
 
-    # Severe credential / security fabrication or extreme ungroundedness.
-    # CRITICAL: Strict confidence gate enforced — must be high or medium confidence.
-    # Low-confidence scores (forced when no source context is provided) CANNOT trigger hard overrides.
-    if performance and performance.confidence in ("high", "medium"):
-        if performance.score >= 80 and performance.safety_concern:
-            return "BLOCK", _reason(
-                "BLOCK",
-                f"severe security/credential fabrication (safety concern flagged, performance risk {performance.score}/100) — '{performance.reasoning}'",
-            )
-        if performance.score >= 90:
-            return "BLOCK", _reason(
-                "BLOCK",
-                f"extreme ungroundedness/hallucination (performance risk {performance.score}/100) — '{performance.reasoning}'",
-            )
+    # Structured safety concern (unauthorized account access / takeover, credential / password revelation).
+    # Intrinsic safety violations trigger BLOCK regardless of whether source context was provided.
+    if performance and performance.safety_concern and performance.score >= 60:
+        return "BLOCK", _reason(
+            "BLOCK",
+            f"unauthorized account access / credential fabrication (safety concern flagged) — '{performance.reasoning}'",
+        )
+
+    # Extreme ungroundedness override (requires high or medium confidence).
+    if performance and performance.confidence in ("high", "medium") and performance.score >= 90:
+        return "BLOCK", _reason(
+            "BLOCK",
+            f"extreme ungroundedness/hallucination (performance risk {performance.score}/100) — '{performance.reasoning}'",
+        )
 
     # ── Tier 2: HUMAN-escalation patterns ────────────────────────────────────
     # Gated on current_decision not already being BLOCK or HUMAN — this is the
@@ -309,7 +310,7 @@ async def inspect(
 
     # Hard-override layer: runs after scoring, changes decision only.
     # total_score is preserved so the audit log remains meaningful.
-    decision, override_reason = _apply_hard_overrides(responsibility, performance, decision, policy)
+    decision, override_reason = _apply_hard_overrides(responsibility, performance, cost, decision, policy)
 
     return InspectionResult(
         decision=decision,
