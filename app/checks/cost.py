@@ -21,7 +21,25 @@ class CostResult:
 _TOKENS_PER_WORD = 1.3
 
 
-def check_cost(response: str, budget_tokens: int) -> CostResult:
+def check_cost(*args, **kwargs) -> CostResult:
+    response = ""
+    budget_tokens = 220
+
+    for a in args:
+        if isinstance(a, str):
+            response = a
+        elif isinstance(a, int):
+            budget_tokens = a
+        elif hasattr(a, "cost_budget_tokens"):
+            budget_tokens = getattr(a, "cost_budget_tokens")
+
+    if "response" in kwargs:
+        response = kwargs["response"]
+    if "budget_tokens" in kwargs:
+        budget_tokens = kwargs["budget_tokens"]
+    elif "policy" in kwargs and hasattr(kwargs["policy"], "cost_budget_tokens"):
+        budget_tokens = kwargs["policy"].cost_budget_tokens
+
     word_count = len(response.split())
     estimated_tokens = math.ceil(word_count * _TOKENS_PER_WORD)
     over_ratio = estimated_tokens / budget_tokens if budget_tokens else 0

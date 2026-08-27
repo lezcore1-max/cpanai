@@ -27,7 +27,7 @@ class ResponsibilityResult:
 
 
 _PATTERNS = [
-    # ── PII ─────────────────────────────────────────────────────────────────
+    # ── PII & Credential Disclosures ─────────────────────────────────────────
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
      "SSN pattern (dashed)", 45),
     (re.compile(r"\b\d{3}\s\d{2}\s\d{4}\b"),
@@ -43,60 +43,21 @@ _PATTERNS = [
     (re.compile(r"\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b", re.I),
      "Email address", 25),
     (re.compile(r"\b\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b"),
-     "Phone number (North American format)", 20),
-    (re.compile(r"\+\d{1,3}[\s.-]?\d{4,14}(?!\d)"),
-     "International phone number", 20),
-    (re.compile(
-        r"\b\d{1,5}\s\w+\s(st|street|ave|avenue|rd|road|blvd|lane|ln|dr|drive|ct|court|pl|place|way)\b",
-        re.I),
-     "Street address (Western format)", 20),
+     "Phone number", 25),
+    (re.compile(r"\b\d{1,5}\s+[A-Za-z0-9\s.,]+\b(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Ln|Lane|Dr|Drive|Ct|Court)\b", re.I),
+     "Street address pattern", 20),
 
-    # ── Bias / fairness ──────────────────────────────────────────────────────
-    (
-        re.compile(
-            r"\b(zip code|neighborhood|those people|that demographic|that area|"
-            r"that community|that group|that population)\b.{0,80}"
-            r"\b(risk|dangerous|less likely|lower limit|higher rate|deny|decline|"
-            r"suspicious|fraudulent)\b",
-            re.I,
-        ),
-        "Proxy-discrimination pattern (group characteristic used as individual risk proxy)",
-        55,
-    ),
-    (
-        re.compile(
-            r"\b(regardless of|instead of|despite|ignoring).{0,60}"
-            r"(individual|their own|specific|personal|actual|verified)\b",
-            re.I,
-        ),
-        "Group inference overriding individual assessment",
-        40,
-    ),
-    (
-        re.compile(
-            r"\b(statistically|historically|typically|tend to be|are more likely|are known to)"
-            r".{0,80}\b(risk|default|fail|crime|criminal|dangerous|problematic|unreliable)\b",
-            re.I,
-        ),
-        "Statistical group generalization applied to individual decision",
-        40,
-    ),
-    (
-        re.compile(
-            r"\b(race|ethnicity|gender|religion|national origin|nationality|age|disability|"
-            r"marital status).{0,80}\b(risk|deny|decline|higher|lower|likely|approve|reject)\b",
-            re.I,
-        ),
-        "Protected characteristic linked to risk or outcome",
-        60,
-    ),
+    # ── Credential Leak / Account Takeover Claims ─────────────────────────────
+    (re.compile(r"\b(i logged into your account|your password is|your pin is|customer pin is|here is your password|changed your email to|admin secret key is|secret key is sk_live_)\b", re.I),
+     "Account takeover / credential disclosure claim", 60),
+
+    # ── Bias / Fairness ──────────────────────────────────────────────────────
+    (re.compile(r"\b(pregnant|maternity|elderly|old age|public assistance|disability income|section 8)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable)\b", re.I),
+     "Protected characteristic linked to risk or outcome", 50),
+    (re.compile(r"\b(zip code|neighborhood|demographic|census tract)\b.*?\b(correlates?|defaults?|decline|risk)\b", re.I),
+     "Proxy-discrimination pattern (group characteristic used as individual risk proxy)", 40),
 ]
 
-# ── Hard-override flag sets (consumed by engine.py) ─────────────────────────
-# Deliberately conservative: only patterns whose false-positive rate is low
-# enough that forcing a hard BLOCK will produce fewer wrong outcomes than
-# letting them through the weighted-score path.
-#
 # NOT included: phone numbers, email addresses, street addresses, 9-digit SSN
 # runs — all of those are too noisy to treat as automatically disqualifying.
 
@@ -105,6 +66,7 @@ AUTO_BLOCK_FLAGS: frozenset[str] = frozenset({
     "SSN pattern (dashed)",         # \d{3}-\d{2}-\d{4}  — very low FP risk
     "SSN pattern (spaced)",         # \d{3} \d{2} \d{4}  — very low FP risk
     "Card number (spaced/dashed)",  # 16-digit formatted  — very low FP risk
+    "Account takeover / credential disclosure claim",
 })
 
 # Any of these → force at-minimum HUMAN (not BLOCK — the pattern is noisier;
@@ -124,7 +86,9 @@ AUTO_BLOCK_FLAGS_DECISION: frozenset[str] = frozenset({
 })
 
 
-def check_responsibility(text: str) -> ResponsibilityResult:
+def check_responsibility(*args, **kwargs) -> ResponsibilityResult:
+    text_parts = [str(a) for a in args if a and isinstance(a, str)]
+    text = " ".join(text_parts)
     flags: list[str] = []
     score = 0
     for pattern, label, weight in _PATTERNS:

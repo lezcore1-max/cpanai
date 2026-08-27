@@ -227,24 +227,34 @@ def _classify_incident_type(
 
 
 async def inspect_payload(
-    question: str,
-    context: str,
-    response: str,
-    policy: UseCasePolicy,
+    arg1,
+    arg2,
+    arg3,
+    arg4,
 ) -> InspectionResult:
     """
     Main entrypoint for inspecting a single AI response against policy.
-
-    Runs check_responsibility, check_performance, and check_cost in parallel
-    via asyncio.gather to minimize latency for inline gating calls.
+    Flexible signature accepts both (policy, question, context, response)
+    and (question, context, response, policy).
     """
+    if isinstance(arg1, UseCasePolicy):
+        policy = arg1
+        question = str(arg2 or "")
+        context = str(arg3 or "")
+        response = str(arg4 or "")
+    else:
+        question = str(arg1 or "")
+        context = str(arg2 or "")
+        response = str(arg3 or "")
+        policy = arg4
+
     start_time = time.perf_counter()
 
     # Execute all 3 checks concurrently
     responsibility, performance, cost = await asyncio.gather(
-        check_responsibility(question, context, response, policy_key=policy.key),
+        asyncio.to_thread(check_responsibility, response),
         check_performance(question, context, response),
-        check_cost(question, context, response, policy),
+        asyncio.to_thread(check_cost, response, policy),
     )
 
     elapsed_ms = int((time.perf_counter() - start_time) * 1000)
@@ -315,3 +325,6 @@ async def inspect_payload(
         latency_ms=elapsed_ms,
         over_budget=over_budget,
     )
+
+# Alias for backwards compatibility
+inspect = inspect_payload

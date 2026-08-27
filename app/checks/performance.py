@@ -18,6 +18,7 @@ Requires GEMINI_API_KEY. Falls back to a heuristic if the key is absent or
 the API call fails — degraded detection is safer than a hard failure.
 """
 
+import asyncio
 import json
 import os
 import re
@@ -35,7 +36,7 @@ except Exception:
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 
-_JUDGE_MODELS = ["gemini-3.1-flash-lite", "gemini-1.5-flash", "gemini-2.0-flash-lite"]
+_JUDGE_MODEL = "gemini-1.5-flash"
 
 _JUDGE_PROMPT = """\
 You are a strict groundedness and safety auditor. Given a QUESTION, an optional \
@@ -94,6 +95,13 @@ def _heuristic_fallback(response: str, no_context: bool = False) -> PerformanceR
     )
 
 
+def _sync_generate(api_key: str, prompt: str):
+    ssl._create_default_https_context = ssl._create_unverified_context
+    genai.configure(api_key=api_key, transport="rest")
+    model = genai.GenerativeModel(_JUDGE_MODEL)
+    return model.generate_content(prompt, generation_config=GenerationConfig(max_output_tokens=200))
+
+
 async def check_performance(question: str, context: str, response: str) -> PerformanceResult:
     no_context = not bool(context and context.strip())
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -114,44 +122,36 @@ async def check_performance(question: str, context: str, response: str) -> Perfo
         response=response,
     )
 
-    # Enforce SSL bypass and REST transport
-    ssl._create_default_https_context = ssl._create_unverified_context
-    genai.configure(api_key=api_key, transport="rest")
+    try:
+        gemini_response = await asyncio.wait_for(
+            asyncio.to_thread(_sync_generate, api_key, prompt),
+            timeout=8.0
+        )
+        text = gemini_response.text
+        cleaned = text.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(cleaned)
 
-    for model_name in _JUDGE_MODELS:
-        try:
-            model = genai.GenerativeModel(model_name)
-            gemini_response = await model.generate_content_async(
-                prompt,
-                generation_config=GenerationConfig(max_output_tokens=200),
-            )
-            text = gemini_response.text
-            cleaned = text.replace("```json", "").replace("```", "").strip()
-            parsed = json.loads(cleaned)
+        groundedness = max(0, min(100, int(parsed.get("groundedness_score", 50))))
+        confidence = parsed.get("confidence", "medium")
+        if confidence not in ("high", "medium", "low"):
+            confidence = "medium"
 
-            groundedness = max(0, min(100, int(parsed.get("groundedness_score", 50))))
-            confidence = parsed.get("confidence", "medium")
-            if confidence not in ("high", "medium", "low"):
-                confidence = "medium"
+        if no_context and confidence == "high":
+            confidence = "medium"
 
-            if no_context and confidence == "high":
-                confidence = "medium"
+        safety_concern = bool(parsed.get("safety_concern", False))
 
-            safety_concern = bool(parsed.get("safety_concern", False))
+        reasoning = parsed.get("reasoning", "Judged by secondary model.")
+        if no_context:
+            reasoning = f"[plausibility-only — no source context provided] {reasoning}"
 
-            reasoning = parsed.get("reasoning", "Judged by secondary model.")
-            if no_context:
-                reasoning = f"[plausibility-only — no source context provided] {reasoning}"
-
-            return PerformanceResult(
-                score=100 - groundedness,
-                reasoning=reasoning,
-                method=f"llm-judge ({model_name})",
-                confidence=confidence,
-                no_context=no_context,
-                safety_concern=safety_concern,
-            )
-        except Exception:
-            continue
-
-    return _heuristic_fallback(response, no_context=no_context)
+        return PerformanceResult(
+            score=100 - groundedness,
+            reasoning=reasoning,
+            method=f"llm-judge ({_JUDGE_MODEL})",
+            confidence=confidence,
+            no_context=no_context,
+            safety_concern=safety_concern,
+        )
+    except Exception:
+        return _heuristic_fallback(response, no_context=no_context)
