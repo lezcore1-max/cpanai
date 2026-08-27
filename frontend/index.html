@@ -102,7 +102,29 @@
 
       <div class="form-group">
         <label for="response">Candidate AI Response <span class="label-required">* Required</span></label>
-        <textarea id="response" rows="5" placeholder="Paste the generated response to inspect before routing to customer..."></textarea>
+        <textarea id="response" rows="4" placeholder="Paste the generated response to inspect before routing to customer..."></textarea>
+      </div>
+
+      <!-- Multi-Turn Session & Agentic Action Controls -->
+      <div class="form-row-session">
+        <div class="form-group flex-grow">
+          <label for="sessionId">Session ID <span class="label-optional">(Multi-turn state tracking)</span></label>
+          <div class="session-input-wrap">
+            <input type="text" id="sessionId" placeholder="e.g. sess_live_101" autocomplete="off">
+            <button type="button" class="btn-sm-ghost" id="newSessionBtn" title="Start a fresh conversation session">New Session</button>
+          </div>
+        </div>
+
+        <div class="form-group action-toggle-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="isActionCheckbox">
+            <span>Agentic Action</span>
+          </label>
+          <label class="checkbox-label sub-checkbox" id="reversibleWrap">
+            <input type="checkbox" id="actionReversibleCheckbox" checked>
+            <span>Reversible</span>
+          </label>
+        </div>
       </div>
 
       <div class="preset-section">
@@ -183,6 +205,9 @@
           <div class="gauge-sub" id="sub-cost">Token Budget</div>
         </div>
       </div>
+
+      <!-- Session & Agentic Action Telemetry Ledger -->
+      <div class="session-ledger-card" id="sessionBadge" style="display:none;"></div>
 
       <!-- Decision Verdict Banner -->
       <div class="verdict-banner IDLE" id="decisionBadge">

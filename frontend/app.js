@@ -25,6 +25,23 @@ async function boot() {
   renderPolicyNote();
   await refreshLog();
 
+  // Initialize Session ID if empty
+  const sessionInput = document.getElementById('sessionId');
+  if (sessionInput && !sessionInput.value) {
+    sessionInput.value = 'sess_' + Math.floor(Math.random() * 899999 + 100000);
+  }
+
+  const newSessionBtn = document.getElementById('newSessionBtn');
+  if (newSessionBtn) {
+    newSessionBtn.onclick = () => {
+      if (sessionInput) {
+        sessionInput.value = 'sess_' + Math.floor(Math.random() * 899999 + 100000);
+      }
+      const sessionBadge = document.getElementById('sessionBadge');
+      if (sessionBadge) sessionBadge.style.display = 'none';
+    };
+  }
+
   document.getElementById('runBtn').onclick = runInspection;
   document.getElementById('clearBtn').onclick = clearLog;
   document.getElementById('themeToggleBtn').onclick = toggleTheme;
@@ -187,6 +204,10 @@ async function runSyncInspection() {
   const question = document.getElementById('question').value.trim();
   const context  = document.getElementById('context').value.trim();
   const response = document.getElementById('response').value.trim();
+  const sessionId = (document.getElementById('sessionId')?.value || '').trim() || null;
+  const isAction = document.getElementById('isActionCheckbox')?.checked || false;
+  const actionReversible = document.getElementById('actionReversibleCheckbox')?.checked ?? true;
+
   if (!response) {
     alert('Please enter an AI response to inspect.');
     return;
@@ -209,7 +230,15 @@ async function runSyncInspection() {
     const res = await fetch(`${API}/api/inspect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ use_case: currentUC, question, context, response })
+      body: JSON.stringify({
+        use_case: currentUC,
+        question,
+        context,
+        response,
+        session_id: sessionId,
+        is_action: isAction,
+        action_reversible: actionReversible
+      })
     });
     if (!res.ok) {
       throw new Error((await res.json()).detail || 'Inspection request failed');
@@ -384,6 +413,30 @@ function renderDecision(r) {
   }[r.decision] || '';
 
   document.getElementById('decisionSub').textContent = `Total Risk Score: ${r.total_score}/100 · ${subtitle}`;
+
+  // Session & Agentic Action Telemetry Ledger Badge
+  const sessionBadge = document.getElementById('sessionBadge');
+  if (r.session_id && sessionBadge) {
+    sessionBadge.style.display = 'flex';
+    const streak = r.session_escalation_streak || 0;
+    const streakColor = streak >= 3 ? 'var(--danger)' : streak >= 1 ? 'var(--warn)' : 'var(--safe)';
+    sessionBadge.innerHTML = `
+      <div class="session-ledger-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        MULTI-TURN SESSION STATE LEDGER
+      </div>
+      <div class="session-ledger-stats">
+        <span class="session-stat-item">Session ID: <strong>${escapeHtml(r.session_id)}</strong></span>
+        <span class="session-stat-item">Decayed Cum. Risk: <strong>${r.session_cumulative_risk != null ? r.session_cumulative_risk.toFixed(1) : '—'}</strong></span>
+        <span class="session-stat-item">Escalation Streak: <strong style="color:${streakColor};">${streak} turn(s)</strong></span>
+        ${r.is_action ? `<span class="badge-neutral" style="background:rgba(239, 68, 68, 0.15);color:var(--danger);border:1px solid var(--danger);padding:3px 8px;border-radius:4px;font-size:10.5px;font-weight:700;">AGENTIC ACTION ${r.action_reversible ? '(REVERSIBLE)' : '(IRREVERSIBLE)'}</span>` : ''}
+      </div>
+    `;
+  } else if (sessionBadge) {
+    sessionBadge.style.display = 'none';
+  }
 
   // Latency SLA Badge
   const latencyBadge = document.getElementById('latencyBadge');
