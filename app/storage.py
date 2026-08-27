@@ -383,7 +383,7 @@ def get_override_patterns(use_case: str | None = None) -> list[dict]:
     return sorted(result, key=lambda x: x["override_rate"], reverse=True)
 
 
-def get_tuning_suggestions(min_samples: int = 1) -> list[dict]:
+def get_tuning_suggestions(min_samples: int = 5, min_override_rate: float = 0.30) -> list[dict]:
     patterns = get_override_patterns()
     suggestions = []
 
@@ -392,27 +392,31 @@ def get_tuning_suggestions(min_samples: int = 1) -> list[dict]:
         overrides = p["times_overridden"]
         rate = p["override_rate"]
 
-        if total >= min_samples and (rate >= 0.30 or overrides >= 1):
+        # Statistically sound trigger: requires real sample volume (>= 5 cases)
+        # AND a significant reviewer disagreement rate (>= 30%)
+        if total >= min_samples and rate >= min_override_rate:
             suggestions.append({
                 "pattern": p["pattern"],
                 "decision": p["decision"],
+                "incident_type": p["incident_type"],
                 "total_samples": total,
                 "override_count": overrides,
                 "override_rate_pct": round(rate * 100),
-                "suggested_action": f"Calibrate {p['decision']} threshold or refine {p['incident_type']} detector sensitivity",
-                "rationale": f"Reviewers overridden this mechanism in {round(rate * 100)}% of cases ({overrides}/{total} overrides).",
-                "confidence": "HIGH" if total >= 5 else "MEDIUM"
+                "suggested_action": f"Review {p['decision']} threshold and {p['incident_type']} detection sensitivity for calibration",
+                "rationale": f"Reviewers flagged {p['pattern']} as miscalibrated in {round(rate * 100)}% of observed cases ({overrides}/{total} overrides across {total} samples).",
+                "confidence": "HIGH" if total >= 10 else "MEDIUM"
             })
 
     if not suggestions:
         suggestions.append({
             "pattern": "System Baseline Calibrated",
             "decision": "PASS",
+            "incident_type": "baseline",
             "total_samples": 0,
             "override_count": 0,
             "override_rate_pct": 0,
             "suggested_action": "No threshold drift detected — continue monitoring reviewer audit log",
-            "rationale": "Overridden cases are currently below the feedback loop tuning threshold.",
+            "rationale": f"All incident patterns are currently below the feedback loop tuning threshold (min {min_samples} samples, {round(min_override_rate * 100)}% override rate).",
             "confidence": "HIGH"
         })
 

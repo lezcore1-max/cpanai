@@ -805,24 +805,12 @@ async function renderTuningSuggestions() {
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
           <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">CONFIDENCE: <b>${s.confidence}</b> (${s.override_count}/${s.total_samples} samples)</span>
-          <button class="btn-sm-ghost" onclick="applyCalibration('chatbot')">Apply Calibration</button>
+          <span class="badge-neutral" style="font-size:10.5px;background:rgba(79, 70, 229, 0.15);color:#818CF8;border:1px solid rgba(79, 70, 229, 0.3);">READY FOR COMPLIANCE REVIEW</span>
         </div>
       </div>
     `).join('');
   } catch (e) {
     container.innerHTML = `<div class="callout-override">Failed to load tuning suggestions: ${escapeHtml(e.message)}</div>`;
-  }
-}
-
-async function applyCalibration(ucKey) {
-  try {
-    const res = await (await fetch(`${API}/api/use-cases/${ucKey || 'chatbot'}/calibrate`, { method: 'POST' })).json();
-    alert(`✓ CALIBRATION APPLIED LIVE!\n\n${res.message}\n\nThresholds are updated dynamically in-memory.`);
-    const list = await (await fetch(`${API}/api/use-cases`)).json();
-    USE_CASES = Object.fromEntries(list.map(uc => [uc.key, uc]));
-    await renderPolicyEngineView();
-  } catch (e) {
-    alert('Calibration error: ' + e.message);
   }
 }
 

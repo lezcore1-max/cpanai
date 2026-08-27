@@ -37,31 +37,6 @@ def list_use_cases() -> list[dict]:
     return [p.model_dump() for p in USE_CASES.values()]
 
 
-@app.post("/api/use-cases/{key}/calibrate")
-def calibrate_use_case_policy(key: str):
-    try:
-        policy = get_policy(key)
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"Unknown use case: {key}")
-
-    old_block = policy.thresholds.get("block", 60)
-    old_human = policy.thresholds.get("human", 30)
-
-    # Generalized calibration: Proportional elevation of action thresholds based on reviewer feedback
-    new_block = min(90, old_block + 20)
-    new_human = min(75, old_human + 15)
-    policy.thresholds["block"] = new_block
-    policy.thresholds["human"] = new_human
-
-    return {
-        "status": "calibrated",
-        "key": key,
-        "label": policy.label,
-        "new_thresholds": policy.thresholds,
-        "message": f"Successfully calibrated {policy.label}! Thresholds dynamically tuned (BLOCK: {new_block}, HUMAN: {new_human})."
-    }
-
-
 @app.get("/api/use-cases/{use_case}")
 def get_use_case(use_case: str):
     try:
