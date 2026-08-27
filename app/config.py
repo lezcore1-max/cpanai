@@ -22,6 +22,7 @@ class UseCasePolicy(BaseModel):
     weights: dict                   # responsibility / performance / cost -> 0..1, sums to 1
     thresholds: dict                # block / human / fix -> risk score 0..100
     cost_budget_tokens: int         # expected token budget for a "normal" response
+    require_human_for_irreversible_actions: bool = True  # mandatory HUMAN routing for irreversible agentic actions
 
 
 USE_CASES: dict[str, UseCasePolicy] = {
@@ -34,6 +35,7 @@ USE_CASES: dict[str, UseCasePolicy] = {
         weights={"responsibility": 0.40, "performance": 0.40, "cost": 0.20},
         thresholds={"block": 60, "human": 30, "fix": 15},
         cost_budget_tokens=220,
+        require_human_for_irreversible_actions=True,
     ),
     "copilot": UseCasePolicy(
         key="copilot",
@@ -44,6 +46,7 @@ USE_CASES: dict[str, UseCasePolicy] = {
         weights={"performance": 0.50, "responsibility": 0.30, "cost": 0.20},
         thresholds={"block": 75, "human": 45, "fix": 15},
         cost_budget_tokens=700,
+        require_human_for_irreversible_actions=True,
     ),
     "decision": UseCasePolicy(
         key="decision",
@@ -54,6 +57,7 @@ USE_CASES: dict[str, UseCasePolicy] = {
         weights={"responsibility": 0.45, "performance": 0.35, "cost": 0.20},
         thresholds={"block": 50, "human": 30, "fix": 15},
         cost_budget_tokens=400,
+        require_human_for_irreversible_actions=True,
     ),
 }
 

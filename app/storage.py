@@ -29,6 +29,20 @@ def _conn():
         conn.close()
 
 
+import json
+
+
+@dataclass
+class SessionState:
+    session_id: str
+    use_case: str
+    turn_count: int = 0
+    cumulative_risk: float = 0.0
+    flagged_turns: list[int] = field(default_factory=list)
+    last_decision: str = "PASS"
+    escalation_streak: int = 0
+
+
 def init_db() -> None:
     with _conn() as conn:
         conn.execute(
@@ -50,7 +64,24 @@ def init_db() -> None:
                 over_budget INTEGER,
                 override_reason TEXT,
                 compound_incident INTEGER,
-                incident_type TEXT
+                incident_type TEXT,
+                session_id TEXT,
+                is_action INTEGER,
+                action_reversible INTEGER
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                use_case TEXT NOT NULL,
+                turn_count INTEGER NOT NULL DEFAULT 0,
+                cumulative_risk REAL NOT NULL DEFAULT 0.0,
+                flagged_turns TEXT NOT NULL DEFAULT '[]',
+                last_decision TEXT NOT NULL DEFAULT 'PASS',
+                escalation_streak INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
             )
             """
         )
@@ -60,6 +91,67 @@ def init_db() -> None:
         _add_column_if_missing(conn, "override_reason", "TEXT")
         _add_column_if_missing(conn, "compound_incident", "INTEGER")
         _add_column_if_missing(conn, "incident_type", "TEXT")
+        _add_column_if_missing(conn, "session_id", "TEXT")
+        _add_column_if_missing(conn, "is_action", "INTEGER")
+        _add_column_if_missing(conn, "action_reversible", "INTEGER")
+
+
+def get_session(session_id: str) -> SessionState | None:
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+        if not row:
+            return None
+        return SessionState(
+            session_id=row["session_id"],
+            use_case=row["use_case"],
+            turn_count=row["turn_count"],
+            cumulative_risk=float(row["cumulative_risk"]),
+            flagged_turns=json.loads(row["flagged_turns"] or "[]"),
+            last_decision=row["last_decision"],
+            escalation_streak=row["escalation_streak"],
+        )
+
+
+def save_session(session: SessionState) -> None:
+    with _conn() as conn:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            """
+            INSERT INTO sessions (session_id, use_case, turn_count, cumulative_risk, flagged_turns, last_decision, escalation_streak, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(session_id) DO UPDATE SET
+                use_case=excluded.use_case,
+                turn_count=excluded.turn_count,
+                cumulative_risk=excluded.cumulative_risk,
+                flagged_turns=excluded.flagged_turns,
+                last_decision=excluded.last_decision,
+                escalation_streak=excluded.escalation_streak,
+                updated_at=excluded.updated_at
+            """,
+            (
+                session.session_id,
+                session.use_case,
+                session.turn_count,
+                session.cumulative_risk,
+                json.dumps(session.flagged_turns),
+                session.last_decision,
+                session.escalation_streak,
+                now,
+            ),
+        )
+
+
+def update_session_state(session: SessionState, this_turn_score: int, this_turn_decision: str) -> SessionState:
+    DECAY = 0.7
+    session.cumulative_risk = session.cumulative_risk * DECAY + this_turn_score
+    session.turn_count += 1
+    if this_turn_decision in ("FIX", "HUMAN", "BLOCK"):
+        session.escalation_streak += 1
+        session.flagged_turns.append(session.turn_count)
+    else:
+        session.escalation_streak = 0
+    session.last_decision = this_turn_decision
+    return session
 
 
 def _add_column_if_missing(conn: sqlite3.Connection, col: str, typedef: str) -> None:
@@ -85,6 +177,9 @@ class LogEntryIn:
     override_reason: str | None = None
     compound_incident: bool | None = None
     incident_type: str | None = None
+    session_id: str | None = None
+    is_action: bool | None = None
+    action_reversible: bool | None = None
 
 
 def insert_log(entry: LogEntryIn) -> int:
@@ -95,8 +190,8 @@ def insert_log(entry: LogEntryIn) -> int:
                 (created_at, use_case, question, response, responsibility_score,
                  performance_score, cost_score, total_score, decision, reasoning,
                  review, latency_ms, over_budget, override_reason,
-                 compound_incident, incident_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+                 compound_incident, incident_type, session_id, is_action, action_reversible)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -114,6 +209,9 @@ def insert_log(entry: LogEntryIn) -> int:
                 entry.override_reason,
                 int(entry.compound_incident) if entry.compound_incident is not None else None,
                 entry.incident_type,
+                entry.session_id,
+                int(entry.is_action) if entry.is_action is not None else None,
+                int(entry.action_reversible) if entry.action_reversible is not None else None,
             ),
         )
         return cur.lastrowid

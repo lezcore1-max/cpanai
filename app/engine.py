@@ -31,6 +31,11 @@ class InspectionResult:
     override_reason: str | None = None
     latency_ms: int = 0
     over_budget: bool = False
+    session_id: str | None = None
+    session_cumulative_risk: float | None = None
+    session_escalation_streak: int | None = None
+    is_action: bool = False
+    action_reversible: bool = True
 
 
 def _apply_hard_overrides(
@@ -39,6 +44,9 @@ def _apply_hard_overrides(
     cost: CostResult,
     current_decision: str,
     policy: UseCasePolicy,
+    session: Any | None = None,
+    is_action: bool = False,
+    action_reversible: bool = True,
 ) -> tuple[str, str | None]:
     """
     Applies deterministic compliance hard-rules over the score-based decision.
@@ -131,10 +139,28 @@ def _apply_hard_overrides(
                     f"auto-redactable PII match — '{flag}'",
                 )
 
-        if cost and cost.score >= 90:
-            return "FIX", _reason(
-                "FIX",
-                f"severe cost budget overage (~{cost.estimated_tokens} est. tokens vs {cost.budget_tokens} budget) — auto-trimmed",
+    # ── Tier 4: Session Compounding Risk & Agentic Action Overrides ──────────
+    if is_action and not action_reversible and getattr(policy, "require_human_for_irreversible_actions", True):
+        if current_decision not in ("BLOCK", "HUMAN"):
+            return "HUMAN", _reason(
+                "HUMAN",
+                "irreversible agentic action requires mandatory human review",
+            )
+
+    if session:
+        streak = getattr(session, "escalation_streak", 0)
+        cum_risk = getattr(session, "cumulative_risk", 0.0)
+        block_thresh = policy.thresholds.get("block", 60)
+
+        if streak >= 3 and current_decision not in ("BLOCK", "HUMAN"):
+            return "HUMAN", _reason(
+                "HUMAN",
+                f"session escalation pattern: {streak} consecutive flagged turns",
+            )
+        if cum_risk >= block_thresh * 1.5 and current_decision != "BLOCK":
+            return "BLOCK", _reason(
+                "BLOCK",
+                f"cumulative session risk ({cum_risk:.0f}) exceeds sustained-pattern threshold ({block_thresh * 1.5:.0f})",
             )
 
     return current_decision, None
@@ -184,6 +210,9 @@ async def inspect_payload(*args, **kwargs) -> InspectionResult:
     question = kwargs.get("question", "")
     context = kwargs.get("context", "")
     response = kwargs.get("response", "")
+    session_id = kwargs.get("session_id")
+    is_action = kwargs.get("is_action", False)
+    action_reversible = kwargs.get("action_reversible", True)
 
     pos_args = list(args)
     if not policy and pos_args:
@@ -202,6 +231,14 @@ async def inspect_payload(*args, **kwargs) -> InspectionResult:
     if not policy:
         from app.config import get_policy
         policy = get_policy("chatbot")
+
+    # Fetch/initialize session state if session_id is provided
+    session = None
+    if session_id:
+        from app import storage
+        session = storage.get_session(session_id)
+        if not session:
+            session = storage.SessionState(session_id=session_id, use_case=policy.key)
 
     # Run checks in parallel via asyncio.gather
     responsibility, performance, cost = await asyncio.gather(
@@ -249,10 +286,23 @@ async def inspect_payload(*args, **kwargs) -> InspectionResult:
     else:
         base_decision = "PASS"
 
-    # Apply hard rule overrides
+    # Apply hard rule overrides (including session compounding risk & agentic action gates)
     final_decision, override_reason = _apply_hard_overrides(
-        responsibility, performance, cost, base_decision, policy
+        responsibility,
+        performance,
+        cost,
+        base_decision,
+        policy,
+        session=session,
+        is_action=is_action,
+        action_reversible=action_reversible,
     )
+
+    # Update session state and persist if active session
+    if session:
+        from app import storage
+        session = storage.update_session_state(session, total_score, final_decision)
+        storage.save_session(session)
 
     # Classify incident type for audit reporting
     has_pii = any(any(kw.lower() in f.lower() for kw in _PII_KEYWORDS) for f in responsibility.flags)
@@ -275,6 +325,11 @@ async def inspect_payload(*args, **kwargs) -> InspectionResult:
         override_reason=override_reason,
         latency_ms=elapsed_ms,
         over_budget=over_budget,
+        session_id=session_id,
+        session_cumulative_risk=session.cumulative_risk if session else None,
+        session_escalation_streak=session.escalation_streak if session else None,
+        is_action=is_action,
+        action_reversible=action_reversible,
     )
 
 # Alias for backwards compatibility

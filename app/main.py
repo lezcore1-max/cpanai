@@ -99,7 +99,15 @@ async def inspect_response(payload: InspectRequest):
     if not payload.response.strip():
         raise HTTPException(status_code=400, detail="response must not be empty")
 
-    result = await inspect(policy, payload.question, payload.context, payload.response)
+    result = await inspect(
+        policy,
+        payload.question,
+        payload.context,
+        payload.response,
+        session_id=payload.session_id,
+        is_action=payload.is_action,
+        action_reversible=payload.action_reversible,
+    )
     fix = _build_fix(payload, result)
     reasoning = _build_reasoning(result, policy)
 
@@ -119,6 +127,9 @@ async def inspect_response(payload: InspectRequest):
             override_reason=result.override_reason,
             compound_incident=result.compound_incident,
             incident_type=result.incident_type,
+            session_id=payload.session_id,
+            is_action=payload.is_action,
+            action_reversible=payload.action_reversible,
         )
     )
 
@@ -141,6 +152,11 @@ async def inspect_response(payload: InspectRequest):
         override_reason=result.override_reason,
         latency_ms=result.latency_ms,
         over_budget=result.over_budget,
+        session_id=result.session_id,
+        session_cumulative_risk=result.session_cumulative_risk,
+        session_escalation_streak=result.session_escalation_streak,
+        is_action=result.is_action,
+        action_reversible=result.action_reversible,
         fix=fix,
     )
 

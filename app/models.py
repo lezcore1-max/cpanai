@@ -6,6 +6,9 @@ class InspectRequest(BaseModel):
     question: str = ""
     context: str = ""
     response: str
+    session_id: str | None = None
+    is_action: bool = False
+    action_reversible: bool = True
 
 
 class FixOut(BaseModel):
@@ -33,6 +36,11 @@ class InspectResponse(BaseModel):
     override_reason: str | None     # Set when a hard-override changed the decision
     latency_ms: int                 # wall-clock time of the concurrent checks
     over_budget: bool               # True when latency_ms > policy.latency_budget_ms
+    session_id: str | None = None
+    session_cumulative_risk: float | None = None
+    session_escalation_streak: int | None = None
+    is_action: bool = False
+    action_reversible: bool = True
     fix: FixOut | None = None
 
 
