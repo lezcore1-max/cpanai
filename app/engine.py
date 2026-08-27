@@ -145,8 +145,14 @@ def _apply_hard_overrides(
                 )
 
     # Structured safety concern (unauthorized account access / takeover, credential / password revelation).
-    # Intrinsic safety violations trigger BLOCK regardless of whether source context was provided.
-    if performance and performance.safety_concern and performance.score >= 60:
+    # Intrinsic safety violations trigger BLOCK regardless of whether source context was provided,
+    # but require at least medium confidence to prevent low-confidence heuristic fallbacks from forcing BLOCK.
+    if (
+        performance 
+        and performance.safety_concern 
+        and performance.score >= 60
+        and performance.confidence in ("high", "medium")
+    ):
         return "BLOCK", _reason(
             "BLOCK",
             f"unauthorized account access / credential fabrication (safety concern flagged) — '{performance.reasoning}'",
@@ -188,132 +194,117 @@ def _apply_hard_overrides(
     return current_decision, None
 
 
+def _classify_incident_type(
+    has_pii: bool,
+    has_bias: bool,
+    has_hallucination: bool,
+    has_cost: bool,
+    safety_concern: bool = False,
+) -> str:
+    """
+    Classifies the dominant incident pattern for telemetry and audit log reporting.
 
-def _classify_incident(
-    responsibility: ResponsibilityResult,
-    performance: PerformanceResult,
-    cost: CostResult,
+    Precedence:
+    1. Mixed / Compound combinations (fabricated PII, biased hallucination, mixed PII+bias)
+    2. Single primary flags (PII, bias, hallucination, cost)
+    3. "none" if no detectors fired
+    """
+    if (has_pii or safety_concern) and has_hallucination:
+        return "fabricated_pii"
+    if has_bias and has_hallucination:
+        return "biased_hallucination"
+    if has_pii and has_bias:
+        return "mixed"
+    if has_pii or safety_concern:
+        return "pii"
+    if has_bias:
+        return "bias"
+    if has_hallucination:
+        return "hallucination"
+    if has_cost:
+        return "cost"
+    return "none"
+
+
+async def inspect_payload(
+    question: str,
+    context: str,
+    response: str,
     policy: UseCasePolicy,
-) -> tuple[bool, str]:
-    """
-    Returns (compound_incident, incident_type).
-
-    has_pii and has_bias are now classified independently from flag label text,
-    so both can be True simultaneously (e.g. a response that leaks an SSN and
-    also uses a proxy-discrimination phrase).
-
-    The hallucination threshold uses policy.thresholds["fix"] so that stricter
-    use cases (loan: fix≥15) register compound incidents at lower performance
-    scores than lenient ones (chatbot: fix≥25).
-
-    Low-confidence performance scores are excluded from compound detection to
-    prevent a shaky, context-free plausibility guess from amplifying a confirmed
-    PII flag's route.
-    """
-    flags = responsibility.flags
-
-    has_pii = any(
-        any(kw in flag for kw in _PII_KEYWORDS)
-        for flag in flags
-    )
-    has_bias = any(
-        any(lbl.lower() in flag.lower() for lbl in _BIAS_LABELS)
-        for flag in flags
-    )
-
-    # Use policy-specific FIX threshold as the "meaningful concern" floor for
-    # performance, and exclude low-confidence scores (forced when no context).
-    perf_threshold = policy.thresholds["fix"]
-    has_hallucination = (
-        performance.score >= perf_threshold
-        and performance.confidence != "low"
-    )
-
-    has_cost = cost.score > 0
-
-    # Compound = at least one responsibility signal + hallucination
-    compound = (has_pii or has_bias) and has_hallucination
-
-    if has_pii and has_bias and has_hallucination:
-        incident_type = "fabricated_pii"    # most severe: PII + bias + hallucination
-    elif has_pii and has_hallucination:
-        incident_type = "fabricated_pii"
-    elif has_bias and has_hallucination:
-        incident_type = "biased_hallucination"
-    elif has_pii and has_bias:
-        incident_type = "mixed"             # same check, two sub-types — no cross-check compound
-    elif has_pii:
-        incident_type = "pii"
-    elif has_bias:
-        incident_type = "bias"
-    elif has_hallucination:
-        incident_type = "hallucination"
-    elif has_cost:
-        incident_type = "cost"
-    else:
-        incident_type = "none"
-
-    return compound, incident_type
-
-
-async def inspect(
-    policy: UseCasePolicy, question: str, context: str, response: str
 ) -> InspectionResult:
-    # Responsibility and cost are cheap/sync; performance needs a network call.
-    # Running them concurrently means wall-clock latency ≈ slowest check (the
-    # LLM call), not the sum of all three.
-    responsibility_task = asyncio.to_thread(check_responsibility, response + " " + question)
-    cost_task = asyncio.to_thread(check_cost, response, policy.cost_budget_tokens)
-    performance_task = check_performance(question, context, response)
+    """
+    Main entrypoint for inspecting a single AI response against policy.
 
-    # Timer covers only the concurrent checks — that is the latency the policy
-    # budget is actually describing (not scoring/routing arithmetic above).
-    t0 = time.perf_counter()
-    responsibility, cost, performance = await asyncio.gather(
-        responsibility_task, cost_task, performance_task
-    )
-    latency_ms = round((time.perf_counter() - t0) * 1000)
-    over_budget = latency_ms > policy.latency_budget_ms
+    Runs check_responsibility, check_performance, and check_cost in parallel
+    via asyncio.gather to minimize latency for inline gating calls.
+    """
+    start_time = time.perf_counter()
 
-    compound_incident, incident_type = _classify_incident(
-        responsibility, performance, cost, policy
+    # Execute all 3 checks concurrently
+    responsibility, performance, cost = await asyncio.gather(
+        check_responsibility(question, context, response, policy_key=policy.key),
+        check_performance(question, context, response),
+        check_cost(question, context, response, policy),
     )
 
-    resp_weighted = responsibility.score * policy.weights["responsibility"]
-    perf_weighted = performance.score * policy.weights["performance"]
-    cost_weighted = cost.score * policy.weights["cost"]
+    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+    over_budget = elapsed_ms > policy.latency_budget_ms
 
+    # Calculate base weighted risk score
+    raw_total = (
+        responsibility.score * policy.weights["responsibility"]
+        + performance.score * policy.weights["performance"]
+        + cost.score * policy.weights["cost"]
+    )
+
+    # Compound incident detection (corroboration boost)
+    # Check if responsibility (PII/bias) and performance (hallucination) agree
+    has_resp_concern = len(responsibility.flags) > 0
+    has_perf_concern = (
+        performance.confidence in ("high", "medium")
+        and performance.score >= policy.thresholds["fix"]
+    )
+    compound_incident = has_resp_concern and has_perf_concern
+
+    final_weighted = raw_total
     if compound_incident:
-        # Two independent detectors agreeing on the same underlying event is
-        # evidence of confidence, not a reason to shrink the score.
-        # Apply a 15% corroboration boost on the combined resp+perf contribution.
-        #
-        # Concrete check (chatbot policy, weights resp=0.5 perf=0.3, block≥65):
-        #   resp=100 (SSN+card+email), perf=90 (hallucinated):
-        #   overlap = 50 + 27 = 77 → boosted = 77 × 1.15 = 88.5 → total ≈ 89 → BLOCK ✓
-        #   naive sum would be 77 → also BLOCK, but now compound is *at least* as
-        #   severe, never softer than treating them independently.
-        overlap = resp_weighted + perf_weighted
-        total_score = round(min(100, overlap * 1.15 + cost_weighted))
-    else:
-        total_score = round(resp_weighted + perf_weighted + cost_weighted)
+        # Apply 15% corroboration boost on combined responsibility + performance contribution
+        resp_perf_contrib = (
+            responsibility.score * policy.weights["responsibility"]
+            + performance.score * policy.weights["performance"]
+        )
+        boost = resp_perf_contrib * 0.15
+        final_weighted = min(100.0, raw_total + boost)
 
-    thresholds = policy.thresholds
-    if total_score >= thresholds["block"]:
-        decision = "BLOCK"
-    elif total_score >= thresholds["human"]:
-        decision = "HUMAN"
-    elif total_score >= thresholds["fix"]:
-        decision = "FIX"
-    else:
-        decision = "PASS"
+    total_score = int(round(final_weighted))
 
-    # Hard-override layer: runs after scoring, changes decision only.
-    # total_score is preserved so the audit log remains meaningful.
-    decision, override_reason = _apply_hard_overrides(responsibility, performance, cost, decision, policy)
+    # Base decision from weighted total risk score
+    if total_score >= policy.thresholds["block"]:
+        base_decision = "BLOCK"
+    elif total_score >= policy.thresholds["human"]:
+        base_decision = "HUMAN"
+    elif total_score >= policy.thresholds["fix"]:
+        base_decision = "FIX"
+    else:
+        base_decision = "PASS"
+
+    # Apply hard rule overrides
+    final_decision, override_reason = _apply_hard_overrides(
+        responsibility, performance, cost, base_decision, policy
+    )
+
+    # Classify incident type for audit reporting
+    has_pii = any(any(kw.lower() in f.lower() for kw in _PII_KEYWORDS) for f in responsibility.flags)
+    has_bias = any(any(lbl.lower() in f.lower() for lbl in _BIAS_LABELS) for f in responsibility.flags)
+    has_hallucination = performance.score >= policy.thresholds["fix"]
+    has_cost = cost.score >= policy.thresholds["fix"]
+
+    incident_type = _classify_incident_type(
+        has_pii, has_bias, has_hallucination, has_cost, safety_concern=performance.safety_concern
+    )
 
     return InspectionResult(
-        decision=decision,
+        decision=final_decision,
         total_score=total_score,
         responsibility=responsibility,
         performance=performance,
@@ -321,6 +312,6 @@ async def inspect(
         compound_incident=compound_incident,
         incident_type=incident_type,
         override_reason=override_reason,
-        latency_ms=latency_ms,
+        latency_ms=elapsed_ms,
         over_budget=over_budget,
     )
