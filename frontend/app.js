@@ -46,6 +46,8 @@ async function boot() {
   document.getElementById('clearBtn').onclick = clearLog;
   document.getElementById('themeToggleBtn').onclick = toggleTheme;
 
+  initTabNavigation();
+
   // Keyboard shortcut listener: Cmd/Ctrl + Enter triggers inspection
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -614,6 +616,204 @@ async function clearLog() {
   if (confirm('Clear all recorded audit logs?')) {
     await fetch(`${API}/api/audit-log`, { method: 'DELETE' });
     await refreshLog();
+  }
+}
+
+/* ── Navigation Tab Controller ────────────────────────────────────────── */
+
+function initTabNavigation() {
+  const tabs = {
+    '#console': 'tab-console',
+    '#audit': 'tab-audit',
+    '#policies': 'tab-policies',
+    '#analytics': 'tab-analytics',
+  };
+
+  Object.entries(tabs).forEach(([hash, id]) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.onclick = (e) => {
+        e.preventDefault();
+        window.location.hash = hash;
+        switchTab(hash);
+      };
+    }
+  });
+
+  window.onhashchange = () => {
+    switchTab(window.location.hash || '#console');
+  };
+
+  const refreshMetricsBtn = document.getElementById('refreshMetricsBtn');
+  if (refreshMetricsBtn) {
+    refreshMetricsBtn.onclick = () => renderMetricsDashboardView();
+  }
+
+  // Handle initial load hash
+  switchTab(window.location.hash || '#console');
+}
+
+function switchTab(hash) {
+  const cleanHash = hash.startsWith('#') ? hash : '#' + hash;
+  
+  // Highlight active nav tab button
+  const tabMap = {
+    '#console': 'tab-console',
+    '#audit': 'tab-audit',
+    '#policies': 'tab-policies',
+    '#analytics': 'tab-analytics',
+  };
+
+  Object.values(tabMap).forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.remove('active');
+  });
+
+  const activeId = tabMap[cleanHash] || 'tab-console';
+  const activeBtn = document.getElementById(activeId);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const consoleGrid = document.getElementById('console');
+  const policySelector = document.querySelector('.policy-selector-container');
+  const auditCard = document.getElementById('audit');
+  const policiesView = document.getElementById('policiesView');
+  const metricsView = document.getElementById('metricsView');
+
+  if (cleanHash === '#policies') {
+    if (consoleGrid) consoleGrid.style.display = 'none';
+    if (policySelector) policySelector.style.display = 'none';
+    if (auditCard) auditCard.style.display = 'none';
+    if (metricsView) metricsView.style.display = 'none';
+    if (policiesView) {
+      policiesView.style.display = 'block';
+      renderPolicyEngineView();
+    }
+  } else if (cleanHash === '#analytics') {
+    if (consoleGrid) consoleGrid.style.display = 'none';
+    if (policySelector) policySelector.style.display = 'none';
+    if (auditCard) auditCard.style.display = 'none';
+    if (policiesView) policiesView.style.display = 'none';
+    if (metricsView) {
+      metricsView.style.display = 'block';
+      renderMetricsDashboardView();
+    }
+  } else if (cleanHash === '#audit') {
+    if (consoleGrid) consoleGrid.style.display = 'grid';
+    if (policySelector) policySelector.style.display = 'block';
+    if (auditCard) auditCard.style.display = 'block';
+    if (policiesView) policiesView.style.display = 'none';
+    if (metricsView) metricsView.style.display = 'none';
+    auditCard?.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    // Default #console
+    if (consoleGrid) consoleGrid.style.display = 'grid';
+    if (policySelector) policySelector.style.display = 'block';
+    if (auditCard) auditCard.style.display = 'block';
+    if (policiesView) policiesView.style.display = 'none';
+    if (metricsView) metricsView.style.display = 'none';
+  }
+}
+
+function renderPolicyEngineView() {
+  const container = document.getElementById('policyCardsGrid');
+  if (!container) return;
+
+  const policies = Object.values(USE_CASES);
+  if (!policies.length) return;
+
+  container.innerHTML = policies.map(p => `
+    <div class="policy-card-item">
+      <div class="policy-card-header">
+        <div class="policy-card-title">${escapeHtml(p.label)}</div>
+        <div class="policy-card-sla">${p.latency_budget_ms}ms SLA</div>
+      </div>
+      <div class="policy-card-desc">${escapeHtml(p.description)}</div>
+      
+      <div class="policy-card-metric-row">
+        <div class="policy-metric-label">Pipeline Architecture</div>
+        <div class="policy-metric-value">${escapeHtml(p.pipeline_position)}</div>
+      </div>
+
+      <div class="policy-card-metric-row">
+        <div class="policy-metric-label">Risk Dimensions Weighting</div>
+        <div class="policy-metric-value">
+          Responsibility: <b>${Math.round(p.weights.responsibility * 100)}%</b> · 
+          Performance: <b>${Math.round(p.weights.performance * 100)}%</b> · 
+          Cost: <b>${Math.round(p.weights.cost * 100)}%</b>
+        </div>
+      </div>
+
+      <div class="policy-card-metric-row">
+        <div class="policy-metric-label">Action Gating Thresholds</div>
+        <div class="policy-metric-value">
+          <span style="color:var(--danger)">BLOCK ≥ ${p.thresholds.block}</span> · 
+          <span style="color:var(--warn)">HUMAN ≥ ${p.thresholds.human}</span> · 
+          <span style="color:var(--fix)">FIX ≥ ${p.thresholds.fix}</span>
+        </div>
+      </div>
+
+      <div class="policy-card-metric-row">
+        <div class="policy-metric-label">Token Budget &amp; Agentic Rules</div>
+        <div class="policy-metric-value">
+          Token Budget: <b>~${p.cost_budget_tokens} tokens</b> · 
+          Irreversible Actions: <b>${p.require_human_for_irreversible_actions ? 'Mandatory HUMAN Gate' : 'Permissive'}</b>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function renderMetricsDashboardView() {
+  const container = document.getElementById('metricsDashboardGrid');
+  if (!container) return;
+
+  container.innerHTML = '<div class="reasoning-empty">Loading system telemetry...</div>';
+
+  try {
+    const m = await (await fetch(`${API}/api/metrics`)).json();
+    container.innerHTML = `
+      <div class="metric-stat-box">
+        <div class="metric-stat-val">${m.total_inspections ?? 0}</div>
+        <div class="metric-stat-lbl">Total Inspection Requests</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val" style="color:var(--safe);">${m.total_inspections ? Math.round(((m.decision_counts?.PASS || 0) / m.total_inspections) * 100) : 0}%</div>
+        <div class="metric-stat-lbl">Clean Pass Ratio (PASS)</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val" style="color:var(--warn);">${m.decision_counts?.HUMAN || 0}</div>
+        <div class="metric-stat-lbl">Routed to Human Review Queue</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val" style="color:var(--danger);">${m.decision_counts?.BLOCK || 0}</div>
+        <div class="metric-stat-lbl">Hard Blocked Violations</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val" style="color:var(--fix);">${m.decision_counts?.FIX || 0}</div>
+        <div class="metric-stat-lbl">Auto-Corrected (FIX)</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val" style="color:#818CF8;">${m.avg_latency_ms ? Math.round(m.avg_latency_ms) : 0}ms</div>
+        <div class="metric-stat-lbl">Average Check Latency</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val" style="color:var(--primary);">${m.reviewer_confirm_rate_pct != null ? m.reviewer_confirm_rate_pct + '%' : 'N/A'}</div>
+        <div class="metric-stat-lbl">Reviewer Confirmation Accuracy</div>
+      </div>
+
+      <div class="metric-stat-box">
+        <div class="metric-stat-val">${m.over_budget_count || 0}</div>
+        <div class="metric-stat-lbl">SLA Latency Overages</div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="callout-override">Failed to load metrics dashboard: ${escapeHtml(e.message)}</div>`;
   }
 }
 

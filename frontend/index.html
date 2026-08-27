@@ -30,10 +30,10 @@
     </div>
 
     <nav class="nav-tabs">
-      <a href="#console" class="nav-tab active">Inspection Console</a>
-      <a href="#audit" class="nav-tab">Audit Log</a>
-      <a href="#policies" class="nav-tab">Policy Engine</a>
-      <a href="#analytics" class="nav-tab">Metrics</a>
+      <a href="#console" id="tab-console" class="nav-tab active">Inspection Console</a>
+      <a href="#audit" id="tab-audit" class="nav-tab">Audit Log</a>
+      <a href="#policies" id="tab-policies" class="nav-tab">Policy Engine</a>
+      <a href="#analytics" id="tab-analytics" class="nav-tab">Metrics</a>
     </nav>
   </div>
 
@@ -246,8 +246,38 @@
     <!-- Metric Cards Grid -->
     <div class="metrics-grid" id="metricsRow"></div>
 
-    <!-- Audit Log Table -->
-    <div class="table-container" id="logTableWrap"></div>
+  <!-- Dedicated Policy Engine View -->
+  <section class="card view-card" id="policiesView" style="display:none;">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon icon-primary">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M12 8v4m0 4h.01"/>
+        </svg>
+        Policy Engine Matrix &amp; Pipeline Configuration
+      </div>
+      <span class="badge-neutral">ENTERPRISE POLICIES</span>
+    </div>
+    <div class="policy-matrix-desc">
+      Each enterprise pipeline operates under a distinct <b>UseCasePolicy</b> defined in <code>app/config.py</code>. Risk weights, SLA latency budgets, action thresholds, token budgets, and agentic rules are dynamically loaded and enforced.
+    </div>
+    <div class="policy-cards-grid" id="policyCardsGrid"></div>
+  </section>
+
+  <!-- Dedicated Metrics View -->
+  <section class="card view-card" id="metricsView" style="display:none;">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon icon-primary">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        System Metrics &amp; Operational Telemetry Dashboard
+      </div>
+      <button class="btn-ghost" id="refreshMetricsBtn">Refresh Analytics</button>
+    </div>
+    <div class="metrics-dashboard-grid" id="metricsDashboardGrid"></div>
   </section>
 
 </main>

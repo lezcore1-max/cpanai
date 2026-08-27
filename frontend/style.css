@@ -645,6 +645,124 @@ input[type="text"]:focus, textarea:focus {
   font-weight: 700;
 }
 
+/* ── Dedicated Policy Engine & Metrics Views CSS ──────────────────────── */
+.view-card {
+  margin-top: 24px;
+}
+
+.policy-matrix-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.policy-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 20px;
+}
+
+.policy-card-item {
+  background: var(--input-bg);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.policy-card-item:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.policy-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.policy-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.policy-card-sla {
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(79, 70, 229, 0.15);
+  color: #818CF8;
+  border: 1px solid rgba(79, 70, 229, 0.3);
+}
+
+.policy-card-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.policy-card-metric-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface-elevated);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.policy-metric-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.policy-metric-value {
+  font-size: 12.5px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+.metrics-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.metric-stat-box {
+  background: var(--input-bg);
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-stat-val {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--primary);
+}
+
+.metric-stat-lbl {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .preset-label {
   font-size: 12px;
   color: var(--text-dim);
