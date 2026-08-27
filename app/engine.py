@@ -48,17 +48,7 @@ def _apply_hard_overrides(
     is_action: bool = False,
     action_reversible: bool = True,
 ) -> tuple[str, str | None]:
-    """
-    Applies deterministic compliance hard-rules over the score-based decision.
-
-    Guarantees:
-    - Zero demotion: An override can ONLY elevate severity (PASS → FIX → HUMAN → BLOCK).
-    - Explanation tracking: Records whether an override *elevated* the decision
-      or *confirmed* what the score independently reached.
-
-    Returns (decision, override_reason). override_reason is None only when
-    no override fired — meaning the weighted score alone determined the outcome.
-    """
+    override_reason: str | None = None
 
     def _reason(target: str, detail: str) -> str:
         """
@@ -156,7 +146,7 @@ def _apply_hard_overrides(
             )
 
     # If session/action override escalated decision to HUMAN or BLOCK, return it early
-    if current_decision in ("BLOCK", "HUMAN"):
+    if override_reason is not None:
         return current_decision, override_reason
 
     # ── Tier 3: FIX-escalation patterns ──────────────────────────────────────
