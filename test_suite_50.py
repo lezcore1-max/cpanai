@@ -398,6 +398,7 @@ def run_case(base_url, case):
         override_reason=data.get("override_reason"),
         performance_method=data.get("performance_method"),
         performance_confidence=data.get("performance_confidence"),
+        performance_reasoning=data.get("performance_reasoning"),
         check_results=check_results,
         response_preview=case["response"][:55],
     )
@@ -409,9 +410,12 @@ def main():
     p.add_argument("--delay", type=float, default=4.5, help="Delay between requests in seconds to respect 15 RPM limit")
     p.add_argument("--mode-filter", choices=["any", "llm", "fallback"], default=None,
                     help="Only run cases matching this mode")
+    p.add_argument("--max-cases", type=int, default=None, help="Maximum number of test cases to run")
     args = p.parse_args()
 
     cases = CASES if not args.mode_filter else [c for c in CASES if c["mode"] in (args.mode_filter, "any")]
+    if args.max_cases and args.max_cases > 0:
+        cases = cases[:args.max_cases]
 
     print(f"\n=========================================================================================")
     print(f"ControlPlane 50-Case Mechanism Evaluation Harness")
@@ -426,7 +430,8 @@ def main():
         results.append(res)
         
         status_str = "[OK]" if (res["decision_ok"] and res["checks_ok"]) else ("[MECH_MISMATCH]" if res["decision_ok"] else "[FAIL]")
-        print(f"{status_str} (Decision: {res['actual']}, Resp: {res.get('responsibility_score')}, Perf: {res.get('performance_score')}, Cost: {res.get('cost_score')})")
+        llm_ok = "YES" if "llm-judge" in (res.get("performance_method") or "") else "NO (Fallback)"
+        print(f"{status_str} (Decision: {res['actual']}, LLM Call: {llm_ok}, Resp: {res.get('responsibility_score')}, Perf: {res.get('performance_score')})")
 
         if i < len(cases) - 1 and args.delay > 0:
             time.sleep(args.delay)
@@ -445,21 +450,28 @@ def main():
     print(f"Surface PASS (Right decision, WRONG mechanism): {label_only_ok}/{len(results)}")
     print(f"Failed Decisions:                         {failed}/{len(results)}\n")
 
-    print(f"PARAMETER TELEMETRY BREAKDOWN ACROSS ALL 50 CASES:")
-    print(f"{'-'*95}")
-    print(f"{'ID':<4} | {'Use Case':<10} | {'Expected':<14} | {'Actual':<7} | {'Resp':<5} | {'Perf':<5} | {'Cost':<5} | {'Total':<5} | {'Mechanism Status':<18}")
-    print(f"{'-'*95}")
+    print(f"PARAMETER TELEMETRY BREAKDOWN ACROSS TEST CASES:")
+    print(f"{'-'*140}")
+    print(f"{'ID':<4} | {'Use Case':<9} | {'Actual':<7} | {'LLM Call OK?':<12} | {'Resp':<5} | {'Perf':<5} | {'Cost':<5} | {'Tot':<4} | {'LLM Response Reasoning':<38} | {'Decision / Override Reason':<35}")
+    print(f"{'-'*140}")
 
     for r in results:
-        exp_str = "/".join(sorted(list(r['expected'])))
-        mech_status = "OK (Full Match)" if (r["decision_ok"] and r["checks_ok"]) else ("Mech Mismatch" if r["decision_ok"] else "Decision Fail")
+        llm_status = "YES (llm-judge)" if "llm-judge" in (r.get("performance_method") or "") else "NO (fallback)"
         resp_s = str(r.get('responsibility_score', '—'))
         perf_s = str(r.get('performance_score', '—'))
         cost_s = str(r.get('cost_score', '—'))
         tot_s = str(r.get('total_score', '—'))
-        print(f"#{r['id']:<3} | {r['use_case']:<10} | {exp_str:<14} | {r['actual']:<7} | {resp_s:<5} | {perf_s:<5} | {cost_s:<5} | {tot_s:<5} | {mech_status:<18}")
+        reasoning = (r.get("performance_reasoning") or "No reasoning")[:37]
+        override = (r.get("override_reason") or "No override (score decision)")[:34]
+        print(f"#{r['id']:<3} | {r['use_case']:<9} | {r['actual']:<7} | {llm_status:<12} | {resp_s:<5} | {perf_s:<5} | {cost_s:<5} | {tot_s:<4} | {reasoning:<38} | {override:<35}")
 
-    print(f"{'-'*95}\n")
+    print(f"{'-'*140}\n")
+
+    try:
+        with open("benchmark_results.json", "w") as f:
+            json.dump(results, f, indent=2, default=str)
+    except Exception as e:
+        pass
 
     if failed > 0 or label_only_ok > 0:
         print("MISMATCH & FAILURE DETAILED ANNOTATIONS:")
