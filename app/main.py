@@ -303,6 +303,16 @@ def get_metrics():
     return storage.get_metrics()
 
 
+@app.get("/api/metrics/tuning-suggestions")
+def get_tuning_suggestions():
+    return storage.get_tuning_suggestions()
+
+
+@app.get("/api/metrics/override-patterns")
+def get_override_patterns():
+    return storage.get_override_patterns()
+
+
 # Serve the frontend as static files, mounted last so /api routes take priority.
 _frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
 app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")

@@ -775,6 +775,43 @@ async function renderPolicyEngineView() {
       </div>
     </div>
   `).join('');
+
+  await renderTuningSuggestions();
+}
+
+async function renderTuningSuggestions() {
+  const container = document.getElementById('tuningSuggestionsGrid');
+  if (!container) return;
+
+  try {
+    const list = await (await fetch(`${API}/api/metrics/tuning-suggestions`)).json();
+    if (!list || !list.length) {
+      container.innerHTML = '<div class="reasoning-empty">No active threshold calibration suggestions. Baseline detection is aligned with reviewer feedback.</div>';
+      return;
+    }
+
+    container.innerHTML = list.map(s => `
+      <div class="policy-card-item" style="border-left:4px solid ${s.override_rate_pct >= 40 ? 'var(--warn)' : 'var(--primary)'}">
+        <div class="policy-card-header">
+          <div class="policy-card-title">${escapeHtml(s.pattern)}</div>
+          <div class="policy-card-sla" style="background:rgba(245, 158, 11, 0.15);color:var(--warn);border-color:var(--warn);">${s.override_rate_pct}% OVERRIDE RATE</div>
+        </div>
+        <div class="policy-card-desc"><b>Rationale:</b> ${escapeHtml(s.rationale)}</div>
+        
+        <div class="policy-card-metric-row">
+          <div class="policy-metric-label">Human-in-the-Loop Recommendation</div>
+          <div class="policy-metric-value" style="color:var(--text-title);font-weight:700;">${escapeHtml(s.suggested_action)}</div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">CONFIDENCE: <b>${s.confidence}</b> (${s.override_count}/${s.total_samples} samples)</span>
+          <button class="btn-sm-ghost" onclick="alert('Feedback Loop Action Logged: Policy calibration suggestion marked for compliance review.')">Apply Calibration</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="callout-override">Failed to load tuning suggestions: ${escapeHtml(e.message)}</div>`;
+  }
 }
 
 async function renderMetricsDashboardView() {

@@ -266,6 +266,25 @@
       Each enterprise pipeline operates under a distinct <b>UseCasePolicy</b> defined in <code>app/config.py</code>. Risk weights, SLA latency budgets, action thresholds, token budgets, and agentic rules are dynamically loaded and enforced.
     </div>
     <div class="policy-cards-grid" id="policyCardsGrid"></div>
+
+    <!-- Feedback Loop & Human-in-the-Loop Tuning Panel -->
+    <div class="tuning-panel-wrap" style="margin-top: 30px;">
+      <div class="card-header" style="padding-left:0;padding-right:0;">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon icon-primary">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          Feedback Loop &amp; Threshold Tuning Suggestions
+        </div>
+        <span class="badge-neutral" style="background:rgba(16, 185, 129, 0.15);color:var(--safe);border:1px solid var(--safe);">HUMAN-IN-THE-LOOP</span>
+      </div>
+      <div class="policy-matrix-desc">
+        Aggregates historical reviewer overrides to detect false positive clusters and over-flagging drift. Recommends threshold calibrations for human compliance sign-off.
+      </div>
+      <div class="tuning-cards-grid" id="tuningSuggestionsGrid"></div>
+    </div>
   </section>
 
   <!-- Dedicated Metrics View -->

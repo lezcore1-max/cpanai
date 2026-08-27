@@ -339,3 +339,81 @@ def get_metrics() -> dict:
         "over_budget_count": over_budget_count,
         "incident_counts": incident_counts,
     }
+
+
+def get_override_patterns(use_case: str | None = None) -> list[dict]:
+    with _conn() as conn:
+        query = "SELECT decision, override_reason, incident_type, review FROM audit_log"
+        params = []
+        if use_case:
+            query += " WHERE use_case = ?"
+            params.append(use_case)
+        rows = conn.execute(query, params).fetchall()
+
+    patterns = {}
+    for r in rows:
+        dec = r["decision"]
+        reason = r["override_reason"] or "score-threshold"
+        itype = r["incident_type"] or "general"
+        key = f"{dec} ({itype})"
+
+        if key not in patterns:
+            patterns[key] = {
+                "pattern": key,
+                "decision": dec,
+                "incident_type": itype,
+                "total_seen": 0,
+                "times_overridden": 0,
+                "times_confirmed": 0,
+            }
+        
+        patterns[key]["total_seen"] += 1
+        if r["review"] == "override":
+            patterns[key]["times_overridden"] += 1
+        elif r["review"] == "confirm":
+            patterns[key]["times_confirmed"] += 1
+
+    result = []
+    for pat in patterns.values():
+        total = pat["total_seen"]
+        overrides = pat["times_overridden"]
+        pat["override_rate"] = round(overrides / total, 2) if total else 0.0
+        result.append(pat)
+
+    return sorted(result, key=lambda x: x["override_rate"], reverse=True)
+
+
+def get_tuning_suggestions(min_samples: int = 1) -> list[dict]:
+    patterns = get_override_patterns()
+    suggestions = []
+
+    for p in patterns:
+        total = p["total_seen"]
+        overrides = p["times_overridden"]
+        rate = p["override_rate"]
+
+        if total >= min_samples and (rate >= 0.30 or overrides >= 1):
+            suggestions.append({
+                "pattern": p["pattern"],
+                "decision": p["decision"],
+                "total_samples": total,
+                "override_count": overrides,
+                "override_rate_pct": round(rate * 100),
+                "suggested_action": f"Calibrate {p['decision']} threshold or refine {p['incident_type']} detector sensitivity",
+                "rationale": f"Reviewers overridden this mechanism in {round(rate * 100)}% of cases ({overrides}/{total} overrides).",
+                "confidence": "HIGH" if total >= 5 else "MEDIUM"
+            })
+
+    if not suggestions:
+        suggestions.append({
+            "pattern": "System Baseline Calibrated",
+            "decision": "PASS",
+            "total_samples": 0,
+            "override_count": 0,
+            "override_rate_pct": 0,
+            "suggested_action": "No threshold drift detected — continue monitoring reviewer audit log",
+            "rationale": "Overridden cases are currently below the feedback loop tuning threshold.",
+            "confidence": "HIGH"
+        })
+
+    return suggestions
