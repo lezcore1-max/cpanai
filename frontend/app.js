@@ -528,25 +528,30 @@ async function refreshLog() {
 
 function renderMetrics(m) {
   const el = document.getElementById('metricsRow');
-  const acc = m.reviewer_confirmed_accuracy_pct;
-  const accColor = acc === null ? 'var(--text-muted)' : (acc >= 70 ? 'var(--safe)' : 'var(--warn)');
+  const counts = m.decision_counts || m.counts || { PASS: 0, FIX: 0, HUMAN: 0, BLOCK: 0 };
+  const acc = m.reviewer_confirmed_accuracy_pct ?? m.reviewer_confirm_rate_pct;
+  const accColor = acc === null || acc === undefined ? 'var(--text-muted)' : (acc >= 70 ? 'var(--safe)' : 'var(--warn)');
   
   el.innerHTML = `
     <div class="metric-card">
-      <div class="metric-val" style="color:var(--safe)">${m.counts.PASS}</div>
+      <div class="metric-val" style="color:var(--safe)">${counts.PASS || 0}</div>
       <div class="metric-lbl">Passed Clean</div>
     </div>
     <div class="metric-card">
-      <div class="metric-val" style="color:var(--warn)">${m.counts.FIX}</div>
+      <div class="metric-val" style="color:var(--fix)">${counts.FIX || 0}</div>
       <div class="metric-lbl">Auto-Corrected</div>
     </div>
     <div class="metric-card">
-      <div class="metric-val" style="color:var(--human)">${m.counts.HUMAN}</div>
+      <div class="metric-val" style="color:var(--warn)">${counts.HUMAN || 0}</div>
       <div class="metric-lbl">Routed to Human</div>
     </div>
     <div class="metric-card">
-      <div class="metric-val" style="color:${accColor}">${acc === null ? '—' : acc + '%'}</div>
-      <div class="metric-lbl">Reviewer Accuracy (${m.reviewed} reviewed)</div>
+      <div class="metric-val" style="color:var(--danger)">${counts.BLOCK || 0}</div>
+      <div class="metric-lbl">Hard Blocked</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:${accColor}">${acc == null ? '—' : acc + '%'}</div>
+      <div class="metric-lbl">Reviewer Accuracy (${m.reviewed || 0} reviewed)</div>
     </div>
   `;
 }

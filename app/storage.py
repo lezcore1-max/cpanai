@@ -296,23 +296,46 @@ def clear_log() -> None:
 
 def get_metrics() -> dict:
     with _conn() as conn:
-        rows = conn.execute("SELECT decision, review FROM audit_log").fetchall()
+        rows = conn.execute(
+            "SELECT decision, review, latency_ms, over_budget, incident_type FROM audit_log"
+        ).fetchall()
 
     counts = {"PASS": 0, "FIX": 0, "HUMAN": 0, "BLOCK": 0}
+    incident_counts = {}
     reviewed = 0
     confirmed = 0
+    total_latency = 0
+    latency_samples = 0
+    over_budget_count = 0
+
     for row in rows:
-        if row["decision"] in counts:
-            counts[row["decision"]] += 1
+        dec = row["decision"]
+        if dec in counts:
+            counts[dec] += 1
         if row["review"] is not None:
             reviewed += 1
             if row["review"] == "confirm":
                 confirmed += 1
+        if row["latency_ms"] is not None:
+            total_latency += row["latency_ms"]
+            latency_samples += 1
+        if row["over_budget"]:
+            over_budget_count += 1
+        itype = row["incident_type"]
+        if itype and itype != "none":
+            incident_counts[itype] = incident_counts.get(itype, 0) + 1
 
     accuracy_pct = round((confirmed / reviewed) * 100) if reviewed else None
+    avg_latency = round(total_latency / latency_samples, 1) if latency_samples else 0
+
     return {
+        "total_inspections": len(rows),
+        "decision_counts": counts,
         "counts": counts,
         "reviewed": reviewed,
         "reviewer_confirmed_accuracy_pct": accuracy_pct,
-        "total_inspections": len(rows),
+        "reviewer_confirm_rate_pct": accuracy_pct,
+        "avg_latency_ms": avg_latency,
+        "over_budget_count": over_budget_count,
+        "incident_counts": incident_counts,
     }
