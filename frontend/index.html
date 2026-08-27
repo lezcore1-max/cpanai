@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ControlPlane — Enterprise AI Risk Console</title>
+<title>ControlPlane — AI Risk &amp; Compliance Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -50,7 +50,7 @@
         <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
       </svg>
-      <span id="themeToggleText">Light Mode</span>
+      <span id="themeToggleText">Dark Mode</span>
     </button>
 
     <div class="status-pill" id="apiStatus">
@@ -133,17 +133,17 @@
         <div class="latency-chip" id="latencyBadge" style="display:none;"></div>
       </div>
 
-      <!-- Risk Gauge Radial Rings (Populated with functional zero-states) -->
+      <!-- Semantic Risk Gauge Radial Rings -->
       <div class="gauges-grid">
-        <!-- Responsibility Ring -->
-        <div class="gauge-card" id="gauge-card-resp">
+        <!-- Responsibility Ring (Emerald Green) -->
+        <div class="gauge-card gauge-resp" id="gauge-card-resp">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
               <circle class="gauge-bg" cx="50" cy="50" r="38"></circle>
-              <circle class="gauge-fill" id="ring-resp" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+              <circle class="gauge-fill ring-resp-fill" id="ring-resp" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
             </svg>
             <div class="gauge-score-wrap">
-              <span class="gauge-score" id="val-resp">0</span>
+              <span class="gauge-score score-resp" id="val-resp">0</span>
               <span class="gauge-unit">/100</span>
             </div>
           </div>
@@ -151,15 +151,15 @@
           <div class="gauge-sub" id="sub-resp">PII &amp; Bias Regex</div>
         </div>
 
-        <!-- Performance Ring -->
-        <div class="gauge-card" id="gauge-card-perf">
+        <!-- Performance Ring (Amber / Orange) -->
+        <div class="gauge-card gauge-perf" id="gauge-card-perf">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
               <circle class="gauge-bg" cx="50" cy="50" r="38"></circle>
-              <circle class="gauge-fill" id="ring-perf" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+              <circle class="gauge-fill ring-perf-fill" id="ring-perf" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
             </svg>
             <div class="gauge-score-wrap">
-              <span class="gauge-score" id="val-perf">0</span>
+              <span class="gauge-score score-perf" id="val-perf">0</span>
               <span class="gauge-unit">/100</span>
             </div>
           </div>
@@ -167,15 +167,15 @@
           <div class="gauge-sub" id="sub-perf">LLM Groundedness</div>
         </div>
 
-        <!-- Cost Ring -->
-        <div class="gauge-card" id="gauge-card-cost">
+        <!-- Cost Ring (Sky Blue) -->
+        <div class="gauge-card gauge-cost" id="gauge-card-cost">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
               <circle class="gauge-bg" cx="50" cy="50" r="38"></circle>
-              <circle class="gauge-fill" id="ring-cost" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+              <circle class="gauge-fill ring-cost-fill" id="ring-cost" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
             </svg>
             <div class="gauge-score-wrap">
-              <span class="gauge-score" id="val-cost">0</span>
+              <span class="gauge-score score-cost" id="val-cost">0</span>
               <span class="gauge-unit">/100</span>
             </div>
           </div>

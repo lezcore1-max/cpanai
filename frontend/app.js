@@ -3,7 +3,7 @@ const API = ""; // same-origin FastAPI backend
 let USE_CASES = {};
 let SAMPLES = {};
 let currentUC = null;
-let currentTheme = localStorage.getItem('cp-theme') || 'dark';
+let currentTheme = localStorage.getItem('cp-theme') || 'light';
 
 const CIRCUMFERENCE = 238.76; // 2 * PI * 38 for SVG radial gauge ring
 
@@ -46,7 +46,7 @@ function initTheme() {
 }
 
 function toggleTheme() {
-  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
   localStorage.setItem('cp-theme', currentTheme);
   document.documentElement.setAttribute('data-theme', currentTheme);
   updateThemeBtnLabel();
@@ -55,7 +55,7 @@ function toggleTheme() {
 function updateThemeBtnLabel() {
   const txt = document.getElementById('themeToggleText');
   if (txt) {
-    txt.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+    txt.textContent = currentTheme === 'light' ? 'Dark Mode' : 'Light Mode';
   }
 }
 
@@ -118,19 +118,7 @@ function renderPolicyNote() {
   `;
 }
 
-/* ── Smooth Color & SVG Gauge Controller ──────────────────────────────── */
-
-function getScoreColor(score) {
-  const clamped = Math.max(0, Math.min(100, score));
-  let hue;
-  if (clamped <= 50) {
-    hue = 142 - (clamped / 50) * (142 - 38); // 142 (emerald) -> 38 (amber)
-  } else {
-    hue = 38 - ((clamped - 50) / 50) * 44;   // 38 (amber) -> -6 / 354 (crimson)
-    if (hue < 0) hue += 360;
-  }
-  return `hsl(${Math.round(hue)}, 85%, 52%)`;
-}
+/* ── SVG Radial Gauge Controller ──────────────────────────────────────── */
 
 function resetGauges() {
   ['resp', 'perf', 'cost'].forEach(k => {
@@ -139,7 +127,6 @@ function resetGauges() {
     const sub = document.getElementById('sub-' + k);
     if (ring) {
       ring.style.strokeDashoffset = CIRCUMFERENCE;
-      ring.style.stroke = 'var(--safe)';
     }
     if (val) val.textContent = '0';
     if (sub) {
@@ -157,17 +144,14 @@ function setGaugeScore(k, score, detail) {
   const val = document.getElementById('val-' + k);
   const sub = document.getElementById('sub-' + k);
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
-  const color = getScoreColor(clamped);
 
   if (ring) {
     const offset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE;
-    ring.style.stroke = color;
     ring.style.strokeDashoffset = offset;
   }
 
   if (val) {
     val.textContent = clamped;
-    val.style.color = color;
   }
 
   if (sub && detail) {
