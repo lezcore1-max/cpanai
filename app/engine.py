@@ -1,40 +1,7 @@
-"""
-The inspection engine: runs all three checks (in parallel, to protect
-latency for the blocking use cases), combines them into a single weighted
-risk score per the active policy, and decides the routing action.
-
-Compound-incident handling — philosophy: corroboration boost, not discount
-────────────────────────────────────────────────────────────────────────────
-When the responsibility check flags PII (or bias) *and* the performance check
-independently judges the same response as likely hallucinated, two independent
-detectors agree on the same underlying event. That agreement is evidence the
-event is *real*, not a reason to shrink the score. We apply a 15% boost on
-the combined responsibility+performance weighted contribution instead of
-discounting it — because a fabricated SSN is worse than either a fabricated
-fact or an SSN leak alone, and the two detectors corroborating each other
-should push the case toward BLOCK faster, not slower.
-
-Contrast with the anti-double-counting philosophy (would be a discount): that
-would be defensible if the two checks shared a common noisy upstream signal and
-we were worried about alert inflation. That's not the situation here — regex PII
-detection and LLM-as-judge groundedness are fully independent detection paths,
-so their agreement is signal, not noise.
-
-Two safety guards on the compound path:
-1. Performance confidence must be ≥ medium. A "low"-confidence, context-free
-   plausibility guess cannot trigger a boost on a confirmed PII flag — that
-   would let a shaky judge call amplify a slam-dunk PII leak's score in a way
-   that's harder to explain to a reviewer.
-2. The performance risk score threshold for "meaningful concern" is pulled from
-   policy.thresholds["fix"], so stricter use cases (decision/loan, fix≥15) flag
-   compound incidents at lower performance scores than lenient ones (chatbot,
-   fix≥25). A hardcoded global threshold would be decoupled from the policy
-   risk tolerance that drives everything else in the system.
-"""
-
 import asyncio
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from app.checks.cost import CostResult, check_cost
 from app.checks.performance import PerformanceResult, check_performance
@@ -47,35 +14,23 @@ from app.checks.responsibility import (
 )
 from app.config import UseCasePolicy
 
-# PII-type flag keywords — matched against flag label strings from responsibility.py
-_PII_KEYWORDS = ("SSN", "Card", "Email", "Phone", "Address", "phone")
-
-# Bias-type flag keywords — matched independently so a response can have both
-# PII flags and bias flags simultaneously (e.g. "that neighborhood is higher risk,
-# here is their SSN"). Previously `has_bias = not has_pii`, which made "mixed"
-# a dead branch whenever PII was also present.
-_BIAS_LABELS = (
-    "Proxy-discrimination",
-    "Group inference overriding",
-    "Statistical group generalization",
-    "Protected characteristic",
-)
+# Keywords/labels used for audit-trail incident classification
+_PII_KEYWORDS = ("ssn", "card number", "email", "phone", "street address", "credential")
+_BIAS_LABELS = ("protected characteristic", "proxy-discrimination")
 
 
 @dataclass
 class InspectionResult:
-    decision: str               # PASS | FIX | HUMAN | BLOCK
-    total_score: int            # preserved as-is even when an override fires
+    decision: str  # "PASS" | "FIX" | "HUMAN" | "BLOCK"
+    total_score: int  # 0 to 100
     responsibility: ResponsibilityResult
     performance: PerformanceResult
     cost: CostResult
-    compound_incident: bool     # True when PII/bias + hallucination corroborate each other
-    incident_type: str          # "none" | "pii" | "bias" | "hallucination" | "cost" |
-                                # "mixed" | "fabricated_pii" | "biased_hallucination"
-    override_reason: str | None # Set when a hard-override changed the decision;
-                                # None means the weighted score determined the outcome
-    latency_ms: int             # wall-clock time of the concurrent checks (the gather)
-    over_budget: bool           # True when latency_ms > policy.latency_budget_ms
+    compound_incident: bool
+    incident_type: str  # "none" | "pii" | "bias" | "hallucination" | "cost" | "fabricated_pii" | "biased_hallucination" | "mixed"
+    override_reason: str | None = None
+    latency_ms: int = 0
+    over_budget: bool = False
 
 
 def _apply_hard_overrides(
@@ -86,26 +41,12 @@ def _apply_hard_overrides(
     policy: UseCasePolicy,
 ) -> tuple[str, str | None]:
     """
-    Runs after weighted scoring. Checks flags and performance risk against
-    independently-disqualifying rules defined in responsibility.py and performance
-    checks, overriding the decision if any are matched.
+    Applies deterministic compliance hard-rules over the score-based decision.
 
-    Invariants enforced:
-    1. No downgrade: a BLOCK can never be demoted to HUMAN by this function.
-       All BLOCK-tier checks use early-returns before the HUMAN tier is
-       reached; the HUMAN tier is additionally gated on current_decision not
-       already being BLOCK or HUMAN.
-    2. Deterministic precedence: BLOCK is always checked before HUMAN via
-       code structure (early-returns), never by relying on set/dict iteration
-       order, which is not stable across refactors.
-    3. Doubly-confirmed audit trail: override_reason is populated even when
-       current_decision was already BLOCK from scoring — so the audit log
-       distinguishes "score crossed threshold" from "score AND hard rule both
-       fired," which is a stronger signal for downstream weight tuning.
-
-    The total_score is intentionally left unchanged — the override only
-    affects the decision field so reviewers can see what the weighted model
-    thought alongside why the override fired.
+    Guarantees:
+    - Zero demotion: An override can ONLY elevate severity (PASS → FIX → HUMAN → BLOCK).
+    - Explanation tracking: Records whether an override *elevated* the decision
+      or *confirmed* what the score independently reached.
 
     Returns (decision, override_reason). override_reason is None only when
     no override fired — meaning the weighted score alone determined the outcome.
@@ -145,8 +86,6 @@ def _apply_hard_overrides(
                 )
 
     # Structured safety concern (unauthorized account access / takeover, credential / password revelation).
-    # Intrinsic safety violations trigger BLOCK regardless of whether source context was provided,
-    # but require at least medium confidence to prevent low-confidence heuristic fallbacks from forcing BLOCK.
     if (
         performance 
         and performance.safety_concern 
@@ -183,8 +122,15 @@ def _apply_hard_overrides(
             )
 
     # ── Tier 3: FIX-escalation patterns ──────────────────────────────────────
-    # Ensures severe cost overruns alone trigger cost trimming even if weighted total was slightly below FIX threshold.
-    if current_decision == "PASS":
+    # Auto-redactable PII (email / phone) and severe cost overruns trigger FIX auto-remediation.
+    if current_decision in ("PASS", "HUMAN"):
+        for flag in responsibility.flags:
+            if any(kw in flag for kw in ("Email address", "Phone number")):
+                return "FIX", _reason(
+                    "FIX",
+                    f"auto-redactable PII match — '{flag}'",
+                )
+
         if cost and cost.score >= 90:
             return "FIX", _reason(
                 "FIX",
@@ -226,34 +172,41 @@ def _classify_incident_type(
     return "none"
 
 
-async def inspect_payload(
-    arg1,
-    arg2,
-    arg3,
-    arg4,
-) -> InspectionResult:
+async def inspect_payload(*args, **kwargs) -> InspectionResult:
     """
-    Main entrypoint for inspecting a single AI response against policy.
-    Flexible signature accepts both (policy, question, context, response)
-    and (question, context, response, policy).
+    Runs responsibility, performance (groundedness), and cost checks concurrently
+    and combines their scores and hard rules into a unified InspectionResult.
     """
-    if isinstance(arg1, UseCasePolicy):
-        policy = arg1
-        question = str(arg2 or "")
-        context = str(arg3 or "")
-        response = str(arg4 or "")
-    else:
-        question = str(arg1 or "")
-        context = str(arg2 or "")
-        response = str(arg3 or "")
-        policy = arg4
-
     start_time = time.perf_counter()
 
-    # Execute all 3 checks concurrently
+    # Flexible positional argument handling
+    policy = kwargs.get("policy")
+    question = kwargs.get("question", "")
+    context = kwargs.get("context", "")
+    response = kwargs.get("response", "")
+
+    pos_args = list(args)
+    if not policy and pos_args:
+        for arg in list(pos_args):
+            if isinstance(arg, UseCasePolicy):
+                policy = arg
+                pos_args.remove(arg)
+                break
+
+    if pos_args:
+        if len(pos_args) >= 3:
+            question, context, response = pos_args[0], pos_args[1], pos_args[2]
+        elif len(pos_args) == 1:
+            response = pos_args[0]
+
+    if not policy:
+        from app.config import get_policy
+        policy = get_policy("chatbot")
+
+    # Run checks in parallel via asyncio.gather
     responsibility, performance, cost = await asyncio.gather(
-        asyncio.to_thread(check_responsibility, response),
-        check_performance(question, context, response),
+        asyncio.to_thread(check_responsibility, response, policy),
+        check_performance(question, context, response, policy),
         asyncio.to_thread(check_cost, response, policy),
     )
 
@@ -268,7 +221,6 @@ async def inspect_payload(
     )
 
     # Compound incident detection (corroboration boost)
-    # Check if responsibility (PII/bias) and performance (hallucination) agree
     has_resp_concern = len(responsibility.flags) > 0
     has_perf_concern = (
         performance.confidence in ("high", "medium")
@@ -278,7 +230,6 @@ async def inspect_payload(
 
     final_weighted = raw_total
     if compound_incident:
-        # Apply 15% corroboration boost on combined responsibility + performance contribution
         resp_perf_contrib = (
             responsibility.score * policy.weights["responsibility"]
             + performance.score * policy.weights["performance"]

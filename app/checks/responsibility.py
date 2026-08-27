@@ -52,14 +52,11 @@ _PATTERNS = [
      "Account takeover / credential disclosure claim", 60),
 
     # ── Bias / Fairness ──────────────────────────────────────────────────────
-    (re.compile(r"\b(pregnant|maternity|elderly|old age|public assistance|disability income|section 8)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable)\b", re.I),
+    (re.compile(r"\b(pregnant|maternity|elderly|old age|age|\d+\s*years?\s*old|public assistance|disability income|section 8)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable|suggests declining)\b", re.I),
      "Protected characteristic linked to risk or outcome", 50),
     (re.compile(r"\b(zip code|neighborhood|demographic|census tract)\b.*?\b(correlates?|defaults?|decline|risk)\b", re.I),
      "Proxy-discrimination pattern (group characteristic used as individual risk proxy)", 40),
 ]
-
-# NOT included: phone numbers, email addresses, street addresses, 9-digit SSN
-# runs — all of those are too noisy to treat as automatically disqualifying.
 
 # Any of these → force BLOCK regardless of weighted total_score.
 AUTO_BLOCK_FLAGS: frozenset[str] = frozenset({
@@ -80,7 +77,6 @@ AUTO_HUMAN_FLAGS: frozenset[str] = frozenset({
 # Regulated-context-only overrides: independently disqualifying only when the
 # active use case is "decision" (credit/loan) because a protected-characteristic-
 # linked-to-outcome finding is a clear ECOA/FHA violation in that context.
-# In chatbot/copilot the same flag routes normally through the weighted score.
 AUTO_BLOCK_FLAGS_DECISION: frozenset[str] = frozenset({
     "Protected characteristic linked to risk or outcome",
 })
