@@ -87,7 +87,7 @@ def _apply_hard_overrides(
     if (
         performance 
         and performance.safety_concern 
-        and performance.score >= 60
+        and performance.score >= policy.thresholds.get("block", 60)
         and performance.confidence in ("high", "medium")
     ):
         return "BLOCK", _reason(

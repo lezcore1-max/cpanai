@@ -45,9 +45,9 @@ def calibrate_use_case_policy(key: str):
         raise HTTPException(status_code=404, detail=f"Unknown use case: {key}")
 
     old_block = policy.thresholds.get("block", 60)
-    new_block = min(90, old_block + 15)
+    new_block = min(95, old_block + 25)
     policy.thresholds["block"] = new_block
-    policy.thresholds["human"] = min(75, policy.thresholds.get("human", 30) + 10)
+    policy.thresholds["human"] = min(85, policy.thresholds.get("human", 30) + 15)
 
     return {
         "status": "calibrated",
