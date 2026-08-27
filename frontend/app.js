@@ -1,16 +1,18 @@
-const API = ""; // same-origin; backend serves this frontend too
+const API = ""; // same-origin; FastAPI serves this frontend directly
 
 let USE_CASES = {};
 let SAMPLES = {};
 let currentUC = null;
 
-async function boot(){
-  try{
+const CIRCUMFERENCE = 238.76; // 2 * PI * 38 for SVG ring
+
+async function boot() {
+  try {
     const list = await (await fetch(`${API}/api/use-cases`)).json();
     USE_CASES = Object.fromEntries(list.map(uc => [uc.key, uc]));
     currentUC = list[0].key;
     setStatus(true);
-  }catch(e){
+  } catch (e) {
     setStatus(false);
     return;
   }
@@ -23,34 +25,46 @@ async function boot(){
   document.getElementById('clearBtn').onclick = clearLog;
 }
 
-function setStatus(ok){
+function setStatus(ok) {
   const el = document.getElementById('apiStatus');
+  const txt = document.getElementById('statusText');
   el.className = 'status-pill' + (ok ? '' : ' error');
-  el.innerHTML = `<div class="status-dot"></div> ${ok ? 'API connected' : 'API unreachable — is the backend running?'}`;
+  txt.textContent = ok ? 'SYSTEM ONLINE · API READY' : 'API UNREACHABLE — SERVER DOWN';
 }
 
-function renderUseCaseTabs(){
+function renderUseCaseTabs() {
   const row = document.getElementById('ucRow');
   row.innerHTML = '';
   Object.values(USE_CASES).forEach(uc => {
     const btn = document.createElement('div');
     btn.className = 'uc-btn' + (uc.key === currentUC ? ' active' : '');
-    btn.onclick = async () => { currentUC = uc.key; renderUseCaseTabs(); await loadSamples(); renderPolicyNote(); };
+    btn.onclick = async () => {
+      currentUC = uc.key;
+      renderUseCaseTabs();
+      await loadSamples();
+      renderPolicyNote();
+      resetGauges();
+    };
     const isPostHoc = uc.pipeline_position.toLowerCase().includes('post-hoc');
     const tags = [
-      `${uc.latency_budget_ms}ms budget`,
+      `${uc.latency_budget_ms}ms SLA`,
       uc.pipeline_position.split(' —')[0],
-      isPostHoc ? '⚙ async' : '⚡ blocking',
+      isPostHoc ? '⚙ ASYNC MODE' : '⚡ BLOCKING GATE',
     ];
-    btn.innerHTML = `<div class="uc-name">${uc.label}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${uc.description}</div>
-      <div class="uc-meta">${tags.map(t=>`<span class="uc-tag">${t}</span>`).join('')}</div>`;
+    btn.innerHTML = `
+      <div class="uc-name">
+        ${uc.label}
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan);">${uc.key.toUpperCase()}</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">${uc.description}</div>
+      <div class="uc-meta">${tags.map(t => `<span class="uc-tag">${t}</span>`).join('')}</div>
+    `;
     row.appendChild(btn);
   });
 }
 
-async function loadSamples(){
-  if (!SAMPLES[currentUC]){
+async function loadSamples() {
+  if (!SAMPLES[currentUC]) {
     SAMPLES[currentUC] = await (await fetch(`${API}/api/samples/${currentUC}`)).json();
   }
   const row = document.getElementById('sampleRow');
@@ -68,190 +82,270 @@ async function loadSamples(){
   });
 }
 
-function renderPolicyNote(){
+function renderPolicyNote() {
   const uc = USE_CASES[currentUC];
   const isPostHoc = uc.pipeline_position.toLowerCase().includes('post-hoc');
-  document.getElementById('policyNote').innerHTML =
-    `<b style="color:var(--accent)">Active policy — ${uc.label}:</b> ${uc.pipeline_position}<br>
-     Weights: responsibility ${Math.round(uc.weights.responsibility*100)}% · performance ${Math.round(uc.weights.performance*100)}% · cost ${Math.round(uc.weights.cost*100)}%<br>
-     Thresholds: BLOCK ≥ ${uc.thresholds.block} · HUMAN ≥ ${uc.thresholds.human} · FIX ≥ ${uc.thresholds.fix}<br>
-     <span style="color:${isPostHoc ? 'var(--human)' : 'var(--safe)'}">
-       ${isPostHoc
-         ? '⚙ Post-hoc mode — inspection runs asynchronously; HTTP response returns immediately and result lands in the audit trail.'
-         : '⚡ Blocking mode — HTTP response is held until all checks (including LLM judge) complete.'}
-     </span>`;
+  document.getElementById('policyNote').innerHTML = `
+    <b style="color:var(--accent-cyan)">POLICY CONFIGURATION — ${uc.label.toUpperCase()}:</b> ${uc.pipeline_position}<br>
+    <b>Risk Weights:</b> Responsibility ${Math.round(uc.weights.responsibility * 100)}% · Performance ${Math.round(uc.weights.performance * 100)}% · Cost ${Math.round(uc.weights.cost * 100)}%<br>
+    <b>Action Thresholds:</b> BLOCK ≥ ${uc.thresholds.block} · HUMAN ≥ ${uc.thresholds.human} · FIX ≥ ${uc.thresholds.fix}<br>
+    <span style="color:${isPostHoc ? 'var(--human)' : 'var(--safe)'};font-weight:500;">
+      ${isPostHoc
+        ? '⚙ Post-hoc audit mode — inspection executes asynchronously in background tasks.'
+        : '⚡ Pre-response gate — synchronous execution holds response until inspection completes.'}
+    </span>
+  `;
 }
 
-function resetNodes(){
-  ['resp','perf','cost'].forEach(k => {
-    const c = document.getElementById('circ-'+k);
-    c.className = 'node-circle';
-    const s = document.getElementById('score-'+k);
-    s.textContent = '—'; s.style.color = 'var(--muted)';
+/* ── Smooth Color & SVG Gauge Ring Controller ─────────────────────────── */
+
+function getScoreColor(score) {
+  const clamped = Math.max(0, Math.min(100, score));
+  let hue;
+  if (clamped <= 50) {
+    hue = 142 - (clamped / 50) * (142 - 38); // 142 (green) -> 38 (amber)
+  } else {
+    hue = 38 - ((clamped - 50) / 50) * 44;   // 38 (amber) -> -6 / 354 (red)
+    if (hue < 0) hue += 360;
+  }
+  return `hsl(${Math.round(hue)}, 85%, 52%)`;
+}
+
+function resetGauges() {
+  ['resp', 'perf', 'cost'].forEach(k => {
+    const ring = document.getElementById('ring-' + k);
+    const val = document.getElementById('val-' + k);
+    const sub = document.getElementById('sub-' + k);
+    if (ring) {
+      ring.style.strokeDashoffset = CIRCUMFERENCE;
+      ring.style.stroke = 'var(--safe)';
+    }
+    if (val) val.textContent = '—';
+    if (sub) {
+      if (k === 'resp') sub.textContent = 'PII & Bias Regex';
+      if (k === 'perf') sub.textContent = 'LLM Groundedness';
+      if (k === 'cost') sub.textContent = 'Token Budget';
+    }
   });
+  const latencyBadge = document.getElementById('latencyBadge');
+  if (latencyBadge) latencyBadge.style.display = 'none';
 }
-function setNodeActive(k){ document.getElementById('circ-'+k).classList.add('active'); }
-function setNodeDone(k, score){
-  const c = document.getElementById('circ-'+k);
-  c.classList.remove('active');
-  c.classList.add(score >= 60 ? 'done-danger' : score >= 30 ? 'done-warn' : 'done-safe');
-  const s = document.getElementById('score-'+k);
-  s.textContent = 'risk ' + score;
-  s.style.color = score >= 60 ? 'var(--danger)' : score >= 30 ? 'var(--warn)' : 'var(--safe)';
+
+function setGaugeScore(k, score, detail) {
+  const ring = document.getElementById('ring-' + k);
+  const val = document.getElementById('val-' + k);
+  const sub = document.getElementById('sub-' + k);
+  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  const color = getScoreColor(clamped);
+
+  if (ring) {
+    const offset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE;
+    ring.style.stroke = color;
+    ring.style.strokeDashoffset = offset;
+  }
+
+  if (val) {
+    val.textContent = clamped;
+    val.style.color = color;
+  }
+
+  if (sub && detail) {
+    sub.textContent = detail;
+  }
 }
-function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
-// ── Routing: pipeline_position drives which endpoint is called ────────────────
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
 
-async function runInspection(){
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ── Routing: pipeline_position drives sync vs async execution ──────── */
+
+async function runInspection() {
   const uc = USE_CASES[currentUC];
   const isPostHoc = uc.pipeline_position.toLowerCase().includes('post-hoc');
-  if (isPostHoc){
+  if (isPostHoc) {
     await runAsyncInspection();
   } else {
     await runSyncInspection();
   }
 }
 
-// ── Blocking inspection (chatbot / copilot) ───────────────────────────────────
+/* ── Synchronous Inspection (Chatbot / Copilot — Pre-response / Inline) ─ */
 
-async function runSyncInspection(){
+async function runSyncInspection() {
   const question = document.getElementById('question').value.trim();
   const context  = document.getElementById('context').value.trim();
   const response = document.getElementById('response').value.trim();
-  if (!response){ alert('Paste an AI response to inspect first.'); return; }
-
-  const runBtn = document.getElementById('runBtn');
-  runBtn.disabled = true; runBtn.textContent = 'Inspecting…';
-  resetNodes();
-  document.getElementById('decisionBadge').className = 'decision-badge';
-  document.getElementById('decisionBadge').textContent = 'INSPECTING…';
-  document.getElementById('reasoningBox').innerHTML = '';
-  document.getElementById('fixPanel').innerHTML = '';
-
-  // Light up nodes progressively while the real API call is in flight
-  setNodeActive('resp'); await sleep(150);
-  setNodeActive('perf'); await sleep(150);
-  setNodeActive('cost');
-
-  let result;
-  try{
-    const res = await fetch(`${API}/api/inspect`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ use_case: currentUC, question, context, response })
-    });
-    if (!res.ok){ throw new Error((await res.json()).detail || 'Request failed'); }
-    result = await res.json();
-  }catch(e){
-    document.getElementById('decisionBadge').textContent = 'ERROR';
-    document.getElementById('reasoningBox').textContent = 'Request failed: ' + e.message;
-    runBtn.disabled = false; runBtn.textContent = '▶ Run inspection';
+  if (!response) {
+    alert('Please paste an AI response to inspect first.');
     return;
   }
 
-  setNodeDone('resp', result.responsibility_score);
-  setNodeDone('perf', result.performance_score);
-  setNodeDone('cost', result.cost_score);
+  const runBtn = document.getElementById('runBtn');
+  runBtn.disabled = true;
+  runBtn.innerHTML = `
+    <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="10" style="animation:spin 1s linear infinite"/>
+    </svg>
+    <span>Inspecting Response…</span>
+  `;
+
+  resetGauges();
+  const badge = document.getElementById('decisionBadge');
+  badge.className = 'decision-badge IDLE';
+  document.getElementById('decisionText').textContent = 'EVALUATING CHECKS…';
+  document.getElementById('decisionSub').textContent = 'Running Responsibility, Performance, and Cost checks concurrently...';
+  document.getElementById('reasoningBox').innerHTML = '<div class="reasoning-placeholder">Executing inspection pipeline...</div>';
+  document.getElementById('fixPanel').innerHTML = '';
+
+  let result;
+  try {
+    const res = await fetch(`${API}/api/inspect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ use_case: currentUC, question, context, response })
+    });
+    if (!res.ok) {
+      throw new Error((await res.json()).detail || 'Inspection request failed');
+    }
+    result = await res.json();
+  } catch (e) {
+    badge.className = 'decision-badge BLOCK';
+    document.getElementById('decisionText').textContent = 'ERROR';
+    document.getElementById('decisionSub').textContent = 'Inspection failed: ' + e.message;
+    document.getElementById('reasoningBox').innerHTML = `<div class="override-note">❌ Inspection API Exception: ${escapeHtml(e.message)}</div>`;
+    runBtn.disabled = false;
+    runBtn.innerHTML = `
+      <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      <span>Execute Risk Inspection</span>
+    `;
+    return;
+  }
+
+  // Update SVG Risk Rings
+  setGaugeScore('resp', result.responsibility_score, `${result.responsibility_flags.length} flag(s)`);
+  setGaugeScore('perf', result.performance_score, `${result.performance_confidence} conf.`);
+  setGaugeScore('cost', result.cost_score, `~${result.estimated_tokens} tokens`);
+
   renderDecision(result);
   await refreshLog();
 
-  runBtn.disabled = false; runBtn.textContent = '▶ Run inspection';
+  runBtn.disabled = false;
+  runBtn.innerHTML = `
+    <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polygon points="5 3 19 12 5 21 5 3"/>
+    </svg>
+    <span>Execute Risk Inspection</span>
+  `;
 }
 
-// ── Post-hoc async inspection (decision) ─────────────────────────────────────
+/* ── Asynchronous Inspection (Decision — Post-hoc Audit) ─────────────── */
 
-async function runAsyncInspection(){
+async function runAsyncInspection() {
   const question = document.getElementById('question').value.trim();
   const context  = document.getElementById('context').value.trim();
   const response = document.getElementById('response').value.trim();
-  if (!response){ alert('Paste an AI response to inspect first.'); return; }
+  if (!response) {
+    alert('Please paste an AI response to inspect first.');
+    return;
+  }
 
   const runBtn = document.getElementById('runBtn');
-  runBtn.disabled = true; runBtn.textContent = 'Queueing…';
-  resetNodes();
-
-  // Show all nodes as "queued" (pulsing active) immediately — they'll run
-  // in the background and we won't get per-node callbacks, but the animation
-  // communicates that something is happening without blocking the UI.
-  setNodeActive('resp'); setNodeActive('perf'); setNodeActive('cost');
+  runBtn.disabled = true;
+  runBtn.innerHTML = `<span>Queueing Audit Task…</span>`;
+  resetGauges();
 
   const badge = document.getElementById('decisionBadge');
-  badge.className = 'decision-badge';
-  badge.textContent = 'QUEUING…';
+  badge.className = 'decision-badge IDLE';
+  document.getElementById('decisionText').textContent = 'DISPATCHING ASYNC AUDIT…';
   document.getElementById('reasoningBox').innerHTML = '';
   document.getElementById('fixPanel').innerHTML = '';
 
   let queued;
-  try{
+  try {
     const res = await fetch(`${API}/api/inspect-async`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ use_case: currentUC, question, context, response })
     });
-    if (!res.ok){ throw new Error((await res.json()).detail || 'Request failed'); }
+    if (!res.ok) {
+      throw new Error((await res.json()).detail || 'Async inspection request failed');
+    }
     queued = await res.json();
-  }catch(e){
-    badge.textContent = 'ERROR';
-    document.getElementById('reasoningBox').textContent = 'Request failed: ' + e.message;
-    runBtn.disabled = false; runBtn.textContent = '▶ Run inspection';
+  } catch (e) {
+    badge.className = 'decision-badge BLOCK';
+    document.getElementById('decisionText').textContent = 'ERROR';
+    document.getElementById('decisionSub').textContent = 'Request failed: ' + e.message;
+    runBtn.disabled = false;
+    runBtn.innerHTML = `<span>Execute Risk Inspection</span>`;
     return;
   }
 
-  // HTTP response returned immediately — show the "queued" state.
-  badge.className = 'decision-badge HUMAN';  // neutral blue while pending
-  badge.innerHTML = `QUEUED <div class="decision-sub">ID #${queued.queued_id} · post-hoc inspection running in background · budget ${queued.latency_budget_ms}ms</div>`;
-  document.getElementById('reasoningBox').innerHTML =
-    `<div class="async-queued-note">⚙ Inspection dispatched to background task — this is the post-hoc audit path.<br>
-     The primary response is <b>not blocked</b>. Result will appear in the audit trail below once the LLM judge completes.</div>`;
+  badge.className = 'decision-badge HUMAN';
+  document.getElementById('decisionText').textContent = 'POST-HOC AUDIT QUEUED';
+  document.getElementById('decisionSub').textContent = `Task ID #${queued.queued_id} dispatched to background queue (SLA Budget: ${queued.latency_budget_ms}ms)`;
 
-  // Refresh immediately so the PENDING row appears in the log
+  document.getElementById('reasoningBox').innerHTML = `
+    <div class="async-queued-note">
+      ⚙ <b>Post-Hoc Audit Path Active:</b> Response passed to consumer without blocking.<br>
+      Background inspection is running asynchronously. Results will populate the audit trail automatically.
+    </div>
+  `;
+
   await refreshLog();
-  runBtn.disabled = false; runBtn.textContent = '▶ Run inspection';
+  runBtn.disabled = false;
+  runBtn.innerHTML = `
+    <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polygon points="5 3 19 12 5 21 5 3"/>
+    </svg>
+    <span>Execute Risk Inspection</span>
+  `;
 
-  // Poll for completion and update the badge + audit log when ready
   await pollForResult(queued.queued_id);
 }
 
-async function pollForResult(entryId){
-  const maxAttempts = 25;   // ~15 seconds max
-  const intervalMs  = 600;
+async function pollForResult(entryId) {
+  const maxAttempts = 30;
+  const intervalMs = 500;
 
-  for (let i = 0; i < maxAttempts; i++){
+  for (let i = 0; i < maxAttempts; i++) {
     await sleep(intervalMs);
-    try{
+    try {
       const entry = await (await fetch(`${API}/api/audit-log/${entryId}`)).json();
-      if (entry.decision && entry.decision !== 'PENDING'){
-        // Inspection complete — update the node indicators
-        setNodeDone('resp', entry.responsibility_score ?? 0);
-        setNodeDone('perf', entry.performance_score ?? 0);
-        setNodeDone('cost', entry.cost_score ?? 0);
+      if (entry.decision && entry.decision !== 'PENDING') {
+        setGaugeScore('resp', entry.responsibility_score ?? 0, 'Completed');
+        setGaugeScore('perf', entry.performance_score ?? 0, 'Completed');
+        setGaugeScore('cost', entry.cost_score ?? 0, 'Completed');
 
-        // Render a result from the audit log entry
         renderDecisionFromAuditEntry(entry);
         await refreshLog();
         highlightLogRow(entryId);
         return;
       }
-    }catch(e){ /* keep polling */ }
+    } catch (e) { /* keep polling */ }
   }
-  // Timed out — tell the user to check the audit log manually
+
   const badge = document.getElementById('decisionBadge');
-  badge.textContent = 'TIMEOUT';
-  document.getElementById('reasoningBox').innerHTML =
-    `<div class="no-context-warn">⚠ Polling timed out — the inspection may still be running. Check the audit trail for entry #${entryId}.</div>`;
+  document.getElementById('decisionText').textContent = 'AUDIT TIMEOUT';
+  document.getElementById('reasoningBox').innerHTML = `
+    <div class="no-context-warn">⚠ Polling timed out — background inspection is processing. Check audit log #${entryId}.</div>
+  `;
 }
 
-function renderDecisionFromAuditEntry(entry){
-  // Builds a display-compatible object from an audit log row.
-  // The audit log now stores override_reason, compound_incident, incident_type,
-  // latency_ms, over_budget — enough to reconstruct the key callouts.
+function renderDecisionFromAuditEntry(entry) {
   const pseudo = {
     decision: entry.decision,
     total_score: entry.total_score,
     responsibility_score: entry.responsibility_score,
-    responsibility_flags: [],   // not separately stored; shown via reasoning string
+    responsibility_flags: [],
     performance_score: entry.performance_score,
     performance_reasoning: entry.reasoning || '—',
     performance_method: 'llm-judge',
@@ -268,21 +362,19 @@ function renderDecisionFromAuditEntry(entry){
     fix: null,
   };
   renderDecision(pseudo);
-  // Replace the performance reasoning row with the full stored reasoning string
-  // (which already contains flags, confidence, cost, latency, override notes)
+
   const reasoningBox = document.getElementById('reasoningBox');
   const existing = reasoningBox.innerHTML;
   reasoningBox.innerHTML = existing + `
-    <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:var(--mono);border-top:1px dashed var(--border);padding-top:8px;">
-      Full audit reasoning: ${escapeHtml(entry.reasoning || '—')}
+    <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);border-top:1px dashed var(--border);padding-top:10px;">
+      Stored Audit Reasoning: ${escapeHtml(entry.reasoning || '—')}
     </div>`;
 }
 
-function highlightLogRow(entryId){
-  // Briefly flash the relevant audit log row after polling completes
+function highlightLogRow(entryId) {
   const rows = document.querySelectorAll('#logTableWrap tr');
-  for (const row of rows){
-    if (row.dataset.entryId === String(entryId)){
+  for (const row of rows) {
+    if (row.dataset.entryId === String(entryId)) {
       row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       row.classList.add('row-highlight');
       setTimeout(() => row.classList.remove('row-highlight'), 2000);
@@ -291,138 +383,198 @@ function highlightLogRow(entryId){
   }
 }
 
-// ── Shared decision rendering ─────────────────────────────────────────────────
+/* ── Shared Verdict & Telemetry Renderer ─────────────────────────────── */
 
-function renderDecision(r){
+function renderDecision(r) {
   const badge = document.getElementById('decisionBadge');
   badge.className = 'decision-badge ' + r.decision;
+
+  const decisionText = document.getElementById('decisionText');
+  decisionText.textContent = r.decision;
+
   const subtitle = {
-    PASS:  'Below all thresholds — sent straight through.',
-    FIX:   'Minor issue — auto-corrected and sent through.',
-    HUMAN: 'Judgment call — routed to a reviewer.',
-    BLOCK: 'Clearly unsafe or non-compliant — stopped before the user sees it.',
-    ERROR: 'Background inspection failed — see server logs.',
+    PASS:  'All risk checks below policy thresholds — response cleared for release.',
+    FIX:   'Minor compliance or cost risk detected — auto-corrected before output.',
+    HUMAN: 'Judgment call required — routed to compliance review queue.',
+    BLOCK: 'High risk or compliance violation — blocked from user presentation.',
+    ERROR: 'Inspection engine encountered an exception.',
   }[r.decision] || '';
 
+  document.getElementById('decisionSub').textContent = `Total Risk Score: ${r.total_score}/100 · ${subtitle}`;
+
+  // Latency SLA Badge
+  const latencyBadge = document.getElementById('latencyBadge');
   const uc = USE_CASES[currentUC];
-  const latencyHtml = (r.latency_ms != null)
-    ? (() => {
-        const over = r.over_budget;
-        const color = over ? 'var(--danger)' : 'var(--safe)';
-        return `<span style="font-size:11px;font-family:var(--mono);color:${color};margin-left:8px;">⏱ ${r.latency_ms}ms / ${uc?.latency_budget_ms ?? '?'}ms budget${over ? ' ⚠ OVER' : ' ✓'}</span>`;
-      })()
-    : '';
+  if (r.latency_ms != null && latencyBadge) {
+    latencyBadge.style.display = 'inline-flex';
+    const over = r.over_budget;
+    const color = over ? 'var(--danger)' : 'var(--safe)';
+    latencyBadge.style.borderColor = color;
+    latencyBadge.style.color = color;
+    latencyBadge.innerHTML = `⏱ ${r.latency_ms}ms / ${uc?.latency_budget_ms ?? '?'}ms SLA ${over ? '⚠ OVER' : '✓'}`;
+  }
 
-  badge.innerHTML = `${r.decision} ${latencyHtml}<div class="decision-sub">risk score ${r.total_score}/100 · ${subtitle}</div>`;
-
+  // Formatting Flags & Callouts
   const flagList = (r.responsibility_flags && r.responsibility_flags.length)
-    ? r.responsibility_flags.join(', ')
-    : 'none detected';
+    ? r.responsibility_flags.map(f => `<span style="color:var(--danger)">${escapeHtml(f)}</span>`).join(', ')
+    : 'No PII or bias flags detected';
 
-  const confColor = { high: 'var(--safe)', medium: 'var(--warn)', low: 'var(--danger)' }[r.performance_confidence] || 'var(--muted)';
+  const confColor = { high: 'var(--safe)', medium: 'var(--warn)', low: 'var(--danger)' }[r.performance_confidence] || 'var(--text-muted)';
   const confBadge = r.performance_confidence !== '—'
-    ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${confColor}22;color:${confColor};border:1px solid ${confColor}44;">${r.performance_confidence} confidence</span>`
-    : '';
-
-  const noCtxWarning = r.performance_no_context
-    ? `<div class="no-context-warn">⚠ No source context — performance score reflects plausibility only, not grounding against facts. Treat with additional caution.</div>`
-    : '';
-
-  const compoundNote = r.compound_incident
-    ? `<div class="compound-note">🔗 Compound incident detected (<b>${r.incident_type.replace(/_/g, ' ')}</b>) — both checks fired on the same event. Corroboration boost applied to total score.</div>`
+    ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${confColor}22;color:${confColor};border:1px solid ${confColor}44;font-family:var(--font-mono);">${r.performance_confidence.toUpperCase()} CONFIDENCE</span>`
     : '';
 
   const overrideNote = r.override_reason
-    ? `<div class="override-note">⛔ Hard override — decision forced regardless of weighted score.<br><span style="opacity:0.85">${r.override_reason}</span><br><span style="font-size:10px;opacity:0.6">Weighted score (${r.total_score}/100) is preserved in the audit log for reviewer context.</span></div>`
+    ? `<div class="override-note">⛔ <b>HARD OVERRIDE TRIGGERED:</b> Decision forced to ${r.decision} regardless of total risk score.<br><span>${escapeHtml(r.override_reason)}</span><br><span style="font-size:10px;opacity:0.75">Weighted score (${r.total_score}/100) preserved in audit trail for model tuning.</span></div>`
+    : '';
+
+  const compoundNote = r.compound_incident
+    ? `<div class="compound-note">🔗 <b>COMPOUND INCIDENT (${r.incident_type.replace(/_/g, ' ').toUpperCase()}):</b> Multiple risk detectors fired on the same turn. Corroboration boost applied.</div>`
+    : '';
+
+  const noCtxWarning = r.performance_no_context
+    ? `<div class="no-context-warn">⚠ <b>PLAUSIBILITY-ONLY MODE:</b> No reference source context provided. Performance score reflects internal plausibility, not factual grounding.</div>`
     : '';
 
   document.getElementById('reasoningBox').innerHTML = `
     ${overrideNote}${noCtxWarning}${compoundNote}
-    <b>Responsibility (${r.responsibility_score}):</b> ${flagList}<br>
-    <b>Performance (${r.performance_score}):</b> ${r.performance_reasoning} ${confBadge} <span style="color:var(--muted)">[${r.performance_method}]</span><br>
-    <b>Cost (${r.cost_score}):</b> ~${r.estimated_tokens} est. tokens vs. ${r.budget_tokens} budget for this use case
+    <div style="line-height:1.7;">
+      <b>RESPONSIBILITY (${r.responsibility_score}/100):</b> ${flagList}<br>
+      <b>PERFORMANCE (${r.performance_score}/100):</b> ${escapeHtml(r.performance_reasoning)} ${confBadge} <span style="color:var(--text-dim)">[${r.performance_method}]</span><br>
+      <b>COST (${r.cost_score}/100):</b> ~${r.estimated_tokens} est. tokens vs. ${r.budget_tokens} budget for ${uc?.label || 'this use case'}
+    </div>
   `;
 
+  // Render Auto-Correction (FIX) Diff Panel
   const fixPanel = document.getElementById('fixPanel');
-  if (r.fix){
-    fixPanel.innerHTML = `<div class="fix-panel">
-      <div class="fix-panel-head">Auto-correction applied — ${r.fix.method}</div>
-      <div class="fix-row">
-        <span class="fix-label">Before</span>
-        <div class="fix-before">${escapeHtml(r.fix.before)}</div>
-        <span class="fix-label">After (sent to user)</span>
-        <div class="fix-after">${escapeHtml(r.fix.after)}</div>
+  if (r.fix) {
+    fixPanel.innerHTML = `
+      <div class="fix-panel">
+        <div class="fix-panel-head">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Auto-Correction Applied — ${escapeHtml(r.fix.method)}
+        </div>
+        <div class="fix-row">
+          <span class="fix-label">Before Correction (Raw Output)</span>
+          <div class="fix-before">${escapeHtml(r.fix.before)}</div>
+          <span class="fix-label">After Correction (Sanitized Output)</span>
+          <div class="fix-after">${escapeHtml(r.fix.after)}</div>
+        </div>
       </div>
-    </div>`;
+    `;
   } else {
     fixPanel.innerHTML = '';
   }
 }
 
-// ── Audit log ─────────────────────────────────────────────────────────────────
+/* ── Audit Trail & Metrics Renderers ──────────────────────────────────── */
 
-async function refreshLog(){
-  const [log, metrics] = await Promise.all([
-    (await fetch(`${API}/api/audit-log`)).json(),
-    (await fetch(`${API}/api/metrics`)).json()
-  ]);
-  renderMetrics(metrics);
-  renderLogTable(log);
+async function refreshLog() {
+  try {
+    const [log, metrics] = await Promise.all([
+      (await fetch(`${API}/api/audit-log`)).json(),
+      (await fetch(`${API}/api/metrics`)).json()
+    ]);
+    renderMetrics(metrics);
+    renderLogTable(log);
+  } catch (e) {
+    console.error('Log refresh error:', e);
+  }
 }
 
-function renderMetrics(m){
+function renderMetrics(m) {
   const el = document.getElementById('metricsRow');
   const acc = m.reviewer_confirmed_accuracy_pct;
+  const accColor = acc === null ? 'var(--text-muted)' : (acc >= 70 ? 'var(--safe)' : 'var(--warn)');
+  
   el.innerHTML = `
-    <div class="metric-card"><div class="metric-num" style="color:var(--safe)">${m.counts.PASS}</div><div class="metric-lbl">Passed clean</div></div>
-    <div class="metric-card"><div class="metric-num" style="color:var(--warn)">${m.counts.FIX}</div><div class="metric-lbl">Auto-fixed</div></div>
-    <div class="metric-card"><div class="metric-num" style="color:var(--human)">${m.counts.HUMAN}</div><div class="metric-lbl">Sent to human</div></div>
-    <div class="metric-card"><div class="metric-num" style="color:${acc===null?'var(--muted)':(acc>=70?'var(--safe)':'var(--warn)')}">${acc===null?'—':acc+'%'}</div><div class="metric-lbl">Reviewer-confirmed accuracy (${m.reviewed} reviewed)</div></div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--safe)">${m.counts.PASS}</div>
+      <div class="metric-lbl">Passed Clean</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--warn)">${m.counts.FIX}</div>
+      <div class="metric-lbl">Auto-Corrected</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--human)">${m.counts.HUMAN}</div>
+      <div class="metric-lbl">Routed to Human</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:${accColor}">${acc === null ? '—' : acc + '%'}</div>
+      <div class="metric-lbl">Reviewer Accuracy (${m.reviewed} reviewed)</div>
+    </div>
   `;
 }
 
-function renderLogTable(log){
+function renderLogTable(log) {
   const wrap = document.getElementById('logTableWrap');
-  if (!log.length){
-    wrap.innerHTML = '<div class="empty-log">No inspections yet — run one above to populate the audit trail.</div>';
+  if (!log.length) {
+    wrap.innerHTML = '<div class="empty-log">No inspections logged yet — execute an inspection above to populate the audit trail.</div>';
     return;
   }
-  wrap.innerHTML = `<table>
-    <thead><tr><th>Time</th><th>Use case</th><th>Resp.</th><th>Perf.</th><th>Cost</th><th>Total</th><th>Latency</th><th>Decision</th><th>Reviewer feedback</th></tr></thead>
-    <tbody>
-      ${log.map(r => `<tr data-entry-id="${r.id}">
-        <td>${new Date(r.created_at).toLocaleTimeString()}</td><td>${r.use_case}</td>
-        <td>${r.responsibility_score ?? '—'}</td><td>${r.performance_score ?? '—'}</td><td>${r.cost_score ?? '—'}</td><td>${r.total_score ?? '—'}</td>
-        <td style="font-family:var(--mono);font-size:11px;color:${r.over_budget ? 'var(--warn)' : 'var(--muted)'}">
-          ${r.latency_ms != null ? r.latency_ms + 'ms' + (r.over_budget ? ' ⚠' : '') : '—'}
-        </td>
-        <td><span class="badge-sm ${r.decision}">${r.decision}</span></td>
-        <td>
-          <div class="override-row">
-            <button class="ov-btn ${r.review==='confirm'?'selected-confirm':''}" onclick="setReview(${r.id},'confirm')">✓ correct</button>
-            <button class="ov-btn ${r.review==='override'?'selected-override':''}" onclick="setReview(${r.id},'override')">✕ override</button>
-          </div>
-        </td>
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Use Case</th>
+          <th>Resp.</th>
+          <th>Perf.</th>
+          <th>Cost</th>
+          <th>Total</th>
+          <th>Latency SLA</th>
+          <th>Decision</th>
+          <th>Reviewer Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${log.map(r => `
+          <tr data-entry-id="${r.id}">
+            <td>${new Date(r.created_at).toLocaleTimeString()}</td>
+            <td><b>${escapeHtml(r.use_case)}</b></td>
+            <td>${r.responsibility_score ?? '—'}</td>
+            <td>${r.performance_score ?? '—'}</td>
+            <td>${r.cost_score ?? '—'}</td>
+            <td style="font-weight:700;">${r.total_score ?? '—'}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:${r.over_budget ? 'var(--danger)' : 'var(--text-muted)'}">
+              ${r.latency_ms != null ? r.latency_ms + 'ms' + (r.over_budget ? ' ⚠' : '') : '—'}
+            </td>
+            <td><span class="badge-sm ${r.decision}">${r.decision}</span></td>
+            <td>
+              <div class="override-row">
+                <button class="ov-btn ${r.review === 'confirm' ? 'selected-confirm' : ''}" onclick="setReview(${r.id}, 'confirm')">✓ Correct</button>
+                <button class="ov-btn ${r.review === 'override' ? 'selected-override' : ''}" onclick="setReview(${r.id}, 'override')">✕ Override</button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
-async function setReview(id, value){
-  const currentRow = document.querySelector(`button[onclick="setReview(${id},'${value}')"]`);
+async function setReview(id, value) {
+  const currentRow = document.querySelector(`button[onclick="setReview(${id}, '${value}')"]`);
   const isSelected = currentRow && currentRow.classList.contains(value === 'confirm' ? 'selected-confirm' : 'selected-override');
   const newValue = isSelected ? null : value;
+
   await fetch(`${API}/api/audit-log/${id}/review`, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ review: newValue })
   });
   await refreshLog();
 }
 
-async function clearLog(){
-  await fetch(`${API}/api/audit-log`, { method: 'DELETE' });
-  await refreshLog();
+async function clearLog() {
+  if (confirm('Clear all audit log history?')) {
+    await fetch(`${API}/api/audit-log`, { method: 'DELETE' });
+    await refreshLog();
+  }
 }
 
 boot();

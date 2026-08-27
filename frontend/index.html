@@ -2,76 +2,203 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ControlPlane — Risk Inspection Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ControlPlane — AI Risk &amp; Compliance Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div class="background-grid"></div>
 <div class="wrap">
 
+  <!-- Header -->
   <header>
     <div class="brand">
-      <div class="brand-mark">C</div>
+      <div class="brand-mark">
+        <svg class="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M12 8v4m0 4h.01"/>
+        </svg>
+      </div>
       <div>
-        <h1>ControlPlane</h1>
-        <div class="tagline">REAL-TIME RISK INSPECTION LAYER · LIVE API</div>
+        <div class="brand-title-wrap">
+          <h1>CONTROLPLANE</h1>
+          <span class="version-tag">v1.0 SOC</span>
+        </div>
+        <div class="tagline">REAL-TIME RISK &amp; COMPLIANCE INSPECTION ENGINE</div>
       </div>
     </div>
-    <div class="status-pill" id="apiStatus"><div class="status-dot"></div> Connecting…</div>
+    <div class="status-pill" id="apiStatus">
+      <div class="status-dot"></div> <span id="statusText">Connecting to API…</span>
+    </div>
   </header>
 
-  <div class="usecase-row" id="ucRow"></div>
+  <!-- Use Case Selector Row -->
+  <section class="section-container">
+    <div class="section-header">
+      <span class="section-title">ACTIVE USE-CASE POLICY</span>
+      <span class="section-desc">Select an operational context to apply distinct weights, thresholds &amp; execution gates</span>
+    </div>
+    <div class="usecase-row" id="ucRow"></div>
+  </section>
 
+  <!-- Main Grid: Form + Inspection Pipeline -->
   <div class="grid">
-    <div class="panel">
-      <div class="panel-title">Inspect a response</div>
-      <label>User question</label>
-      <input type="text" id="question" placeholder="What the user asked the AI">
-      <label>Source context (optional)</label>
-      <textarea id="context" rows="3" placeholder="Reference doc, policy, or knowledge base excerpt"></textarea>
-      <label>AI's response (what gets inspected)</label>
-      <textarea id="response" rows="5" placeholder="Paste the AI-generated answer here"></textarea>
-      <div class="sample-row" id="sampleRow"></div>
-      <button class="run-btn" id="runBtn">▶ Run inspection</button>
-      <div class="policy-note" id="policyNote"></div>
+    <!-- Left: Inspection Input Form -->
+    <div class="panel form-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Inspect Response Payload
+        </div>
+        <span class="panel-badge">INPUT CONSOLE</span>
+      </div>
+
+      <div class="form-group">
+        <label for="question">User prompt / question</label>
+        <input type="text" id="question" placeholder="e.g. What is your return policy or account password?" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="context">Source context document <span class="label-opt">(optional reference grounding)</span></label>
+        <textarea id="context" rows="3" placeholder="Paste grounding context, knowledge base excerpt, or policy rules..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="response">AI generated response <span class="label-req">(required)</span></label>
+        <textarea id="response" rows="5" placeholder="Paste the candidate AI response to inspect before routing..."></textarea>
+      </div>
+
+      <div class="sample-section">
+        <span class="sample-label">QUICK TEST SCENARIOS:</span>
+        <div class="sample-row" id="sampleRow"></div>
+      </div>
+
+      <button class="run-btn" id="runBtn">
+        <svg class="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span>Execute Risk Inspection</span>
+      </button>
+
+      <div class="policy-card" id="policyNote"></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-title">Inspection pipeline</div>
-      <div class="pipeline">
-        <div class="connector" style="left:17%; width:33%;"></div>
-        <div class="connector" style="left:50%; width:33%;"></div>
-        <div class="node">
-          <div class="node-circle" id="circ-resp">📥</div>
-          <div class="node-label">Responsibility<br>(PII / bias)</div>
-          <div class="node-score" id="score-resp">—</div>
+    <!-- Right: Inspection Pipeline & Decision Verdict -->
+    <div class="panel pipeline-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          Inspection Pipeline &amp; Verdict
         </div>
-        <div class="node">
-          <div class="node-circle" id="circ-perf">🧠</div>
-          <div class="node-label">Performance<br>(groundedness)</div>
-          <div class="node-score" id="score-perf">—</div>
+        <div class="latency-badge" id="latencyBadge" style="display:none;"></div>
+      </div>
+
+      <!-- Risk Gauge Rings -->
+      <div class="gauges-container">
+        <!-- Responsibility Ring -->
+        <div class="gauge-card" id="gauge-card-resp">
+          <div class="gauge-ring-wrap">
+            <svg class="gauge-svg" viewBox="0 0 100 100">
+              <circle class="gauge-bg" cx="50" cy="50" r="38"></circle>
+              <circle class="gauge-fill" id="ring-resp" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+            </svg>
+            <div class="gauge-value" id="val-resp">—</div>
+          </div>
+          <div class="gauge-info">
+            <div class="gauge-title">Responsibility</div>
+            <div class="gauge-sub" id="sub-resp">PII &amp; Bias Regex</div>
+          </div>
         </div>
-        <div class="node">
-          <div class="node-circle" id="circ-cost">💰</div>
-          <div class="node-label">Cost<br>(vs. budget)</div>
-          <div class="node-score" id="score-cost">—</div>
+
+        <!-- Performance Ring -->
+        <div class="gauge-card" id="gauge-card-perf">
+          <div class="gauge-ring-wrap">
+            <svg class="gauge-svg" viewBox="0 0 100 100">
+              <circle class="gauge-bg" cx="50" cy="50" r="38"></circle>
+              <circle class="gauge-fill" id="ring-perf" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+            </svg>
+            <div class="gauge-value" id="val-perf">—</div>
+          </div>
+          <div class="gauge-info">
+            <div class="gauge-title">Performance</div>
+            <div class="gauge-sub" id="sub-perf">LLM Groundedness</div>
+          </div>
+        </div>
+
+        <!-- Cost Ring -->
+        <div class="gauge-card" id="gauge-card-cost">
+          <div class="gauge-ring-wrap">
+            <svg class="gauge-svg" viewBox="0 0 100 100">
+              <circle class="gauge-bg" cx="50" cy="50" r="38"></circle>
+              <circle class="gauge-fill" id="ring-cost" cx="50" cy="50" r="38" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+            </svg>
+            <div class="gauge-value" id="val-cost">—</div>
+          </div>
+          <div class="gauge-info">
+            <div class="gauge-title">Cost</div>
+            <div class="gauge-sub" id="sub-cost">Token Budget</div>
+          </div>
         </div>
       </div>
-      <div class="decision-badge" id="decisionBadge">AWAITING INPUT</div>
-      <div class="reasoning-box" id="reasoningBox">Fill in a response on the left and run an inspection.</div>
+
+      <!-- Decision Verdict Banner -->
+      <div class="decision-badge IDLE" id="decisionBadge">
+        <div class="decision-main">
+          <span class="decision-text" id="decisionText">AWAITING INSPECTION</span>
+        </div>
+        <div class="decision-sub" id="decisionSub">Run an inspection on the left panel to execute policy evaluation.</div>
+      </div>
+
+      <!-- Detailed Reasoning & Callout Box -->
+      <div class="reasoning-box" id="reasoningBox">
+        <div class="reasoning-placeholder">
+          System telemetry and check breakdowns will be displayed here upon execution.
+        </div>
+      </div>
+
+      <!-- Auto-Correction (FIX) Diff Panel -->
       <div id="fixPanel"></div>
     </div>
-
-    <div class="log-wrap panel">
-      <div class="panel-title">
-        Audit trail &amp; metrics
-        <button class="clear-btn" id="clearBtn">Clear log</button>
-      </div>
-      <div class="metrics-row" id="metricsRow"></div>
-      <div id="logTableWrap"></div>
-    </div>
   </div>
+
+  <!-- Bottom Panel: Audit Trail & Metrics -->
+  <section class="log-wrap panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Audit Trail &amp; System Accuracy Metrics
+      </div>
+      <button class="clear-btn" id="clearBtn">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        Clear Audit History
+      </button>
+    </div>
+
+    <!-- Metrics Row -->
+    <div class="metrics-row" id="metricsRow"></div>
+
+    <!-- Log Table -->
+    <div id="logTableWrap"></div>
+  </section>
+
 </div>
 
 <script src="/app.js"></script>
