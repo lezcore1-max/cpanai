@@ -714,12 +714,21 @@ function switchTab(hash) {
   }
 }
 
-function renderPolicyEngineView() {
+async function renderPolicyEngineView() {
   const container = document.getElementById('policyCardsGrid');
   if (!container) return;
 
-  const policies = Object.values(USE_CASES);
-  if (!policies.length) return;
+  let policies = Object.values(USE_CASES);
+  if (!policies.length) {
+    try {
+      const list = await (await fetch(`${API}/api/use-cases`)).json();
+      USE_CASES = Object.fromEntries(list.map(uc => [uc.key, uc]));
+      policies = list;
+    } catch (e) {
+      container.innerHTML = `<div class="callout-override">Failed to load policy engine matrix: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+  }
 
   container.innerHTML = policies.map(p => `
     <div class="policy-card-item">
