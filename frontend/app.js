@@ -241,7 +241,14 @@ async function runSyncInspection() {
       })
     });
     if (!res.ok) {
-      throw new Error((await res.json()).detail || 'Inspection request failed');
+      let errorDetail = `HTTP ${res.status} Server Error`;
+      try {
+        const errJson = await res.json();
+        errorDetail = errJson.detail || errorDetail;
+      } catch (_) {
+        errorDetail = 'Server is deploying or unavailable — please retry in a few seconds.';
+      }
+      throw new Error(errorDetail);
     }
     result = await res.json();
   } catch (e) {
