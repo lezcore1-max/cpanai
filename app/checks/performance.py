@@ -102,8 +102,19 @@ def _sync_generate(api_key: str, prompt: str):
     return model.generate_content(prompt, generation_config=GenerationConfig(max_output_tokens=200))
 
 
-async def check_performance(question: str, context: str, response: str) -> PerformanceResult:
-    no_context = not bool(context and context.strip())
+async def check_performance(*args, **kwargs) -> PerformanceResult:
+    pos_args = list(args)
+    question = kwargs.get("question", "")
+    context = kwargs.get("context", "")
+    response = kwargs.get("response", "")
+
+    if pos_args:
+        if len(pos_args) >= 3:
+            question, context, response = pos_args[0], pos_args[1], pos_args[2]
+        elif len(pos_args) == 1:
+            response = pos_args[0]
+
+    no_context = not bool(context and str(context).strip())
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return _heuristic_fallback(response, no_context=no_context)
