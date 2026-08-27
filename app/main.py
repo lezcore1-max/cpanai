@@ -45,16 +45,20 @@ def calibrate_use_case_policy(key: str):
         raise HTTPException(status_code=404, detail=f"Unknown use case: {key}")
 
     old_block = policy.thresholds.get("block", 60)
-    new_block = 101
+    old_human = policy.thresholds.get("human", 30)
+
+    # Generalized calibration: Proportional elevation of action thresholds based on reviewer feedback
+    new_block = min(90, old_block + 20)
+    new_human = min(75, old_human + 15)
     policy.thresholds["block"] = new_block
-    policy.thresholds["human"] = 75
+    policy.thresholds["human"] = new_human
 
     return {
         "status": "calibrated",
         "key": key,
         "label": policy.label,
         "new_thresholds": policy.thresholds,
-        "message": f"Successfully calibrated {policy.label}! Over-flagging detector sensitivity tuned (BLOCK threshold elevated beyond false-positive risk scores)."
+        "message": f"Successfully calibrated {policy.label}! Thresholds dynamically tuned (BLOCK: {new_block}, HUMAN: {new_human})."
     }
 
 
