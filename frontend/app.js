@@ -3,10 +3,13 @@ const API = ""; // same-origin FastAPI backend
 let USE_CASES = {};
 let SAMPLES = {};
 let currentUC = null;
+let currentTheme = localStorage.getItem('cp-theme') || 'dark';
 
 const CIRCUMFERENCE = 238.76; // 2 * PI * 38 for SVG radial gauge ring
 
 async function boot() {
+  initTheme();
+
   try {
     const list = await (await fetch(`${API}/api/use-cases`)).json();
     USE_CASES = Object.fromEntries(list.map(uc => [uc.key, uc]));
@@ -16,6 +19,7 @@ async function boot() {
     setStatus(false);
     return;
   }
+
   renderSegmentedPolicyControl();
   await loadSamples();
   renderPolicyNote();
@@ -23,6 +27,7 @@ async function boot() {
 
   document.getElementById('runBtn').onclick = runInspection;
   document.getElementById('clearBtn').onclick = clearLog;
+  document.getElementById('themeToggleBtn').onclick = toggleTheme;
 
   // Keyboard shortcut listener: Cmd/Ctrl + Enter triggers inspection
   document.addEventListener('keydown', (e) => {
@@ -31,6 +36,27 @@ async function boot() {
       runInspection();
     }
   });
+}
+
+/* ── Theme Switcher Controller ────────────────────────────────────────── */
+
+function initTheme() {
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeBtnLabel();
+}
+
+function toggleTheme() {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('cp-theme', currentTheme);
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeBtnLabel();
+}
+
+function updateThemeBtnLabel() {
+  const txt = document.getElementById('themeToggleText');
+  if (txt) {
+    txt.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
 }
 
 function setStatus(ok) {
@@ -53,7 +79,6 @@ function renderSegmentedPolicyControl() {
       renderPolicyNote();
       resetGauges();
     };
-    const isPostHoc = uc.pipeline_position.toLowerCase().includes('post-hoc');
     btn.innerHTML = `
       <div class="seg-title">
         <span>${escapeHtml(uc.label)}</span>
@@ -86,7 +111,6 @@ async function loadSamples() {
 
 function renderPolicyNote() {
   const uc = USE_CASES[currentUC];
-  const isPostHoc = uc.pipeline_position.toLowerCase().includes('post-hoc');
   document.getElementById('policyNote').innerHTML = `
     <b>Active Context (${uc.label}):</b> ${escapeHtml(uc.pipeline_position)} · 
     <b>Weights:</b> Resp ${Math.round(uc.weights.responsibility * 100)}% / Perf ${Math.round(uc.weights.performance * 100)}% / Cost ${Math.round(uc.weights.cost * 100)}% · 
@@ -186,9 +210,7 @@ async function runSyncInspection() {
 
   const runBtn = document.getElementById('runBtn');
   runBtn.disabled = true;
-  runBtn.innerHTML = `
-    <span>Inspecting Payload…</span>
-  `;
+  runBtn.innerHTML = `<span>Inspecting Payload…</span>`;
 
   resetGauges();
   const badge = document.getElementById('decisionBadge');
@@ -219,7 +241,7 @@ async function runSyncInspection() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
         <polygon points="5 3 19 12 5 21 5 3"/>
       </svg>
-      <span>Execute Risk Inspection</span>
+      <span>Run Policy Inspection</span>
       <span class="kbd-hint">⌘Enter</span>
     `;
     return;
@@ -238,7 +260,7 @@ async function runSyncInspection() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
       <polygon points="5 3 19 12 5 21 5 3"/>
     </svg>
-    <span>Execute Risk Inspection</span>
+    <span>Run Policy Inspection</span>
     <span class="kbd-hint">⌘Enter</span>
   `;
 }
@@ -281,7 +303,7 @@ async function runAsyncInspection() {
     document.getElementById('decisionText').textContent = 'ERROR';
     document.getElementById('decisionSub').textContent = 'Request failed: ' + e.message;
     runBtn.disabled = false;
-    runBtn.innerHTML = `<span>Execute Risk Inspection</span>`;
+    runBtn.innerHTML = `<span>Run Policy Inspection</span>`;
     return;
   }
 
@@ -302,7 +324,7 @@ async function runAsyncInspection() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
       <polygon points="5 3 19 12 5 21 5 3"/>
     </svg>
-    <span>Execute Risk Inspection</span>
+    <span>Run Policy Inspection</span>
     <span class="kbd-hint">⌘Enter</span>
   `;
 
