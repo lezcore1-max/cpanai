@@ -99,39 +99,46 @@ async def inspect_response(payload: InspectRequest):
     if not payload.response.strip():
         raise HTTPException(status_code=400, detail="response must not be empty")
 
-    result = await inspect(
-        policy,
-        payload.question,
-        payload.context,
-        payload.response,
-        session_id=payload.session_id,
-        is_action=payload.is_action,
-        action_reversible=payload.action_reversible,
-    )
-    fix = _build_fix(payload, result)
-    reasoning = _build_reasoning(result, policy)
-
-    entry_id = storage.insert_log(
-        storage.LogEntryIn(
-            use_case=policy.label,
-            question=payload.question,
-            response=payload.response,
-            responsibility_score=result.responsibility.score,
-            performance_score=result.performance.score,
-            cost_score=result.cost.score,
-            total_score=result.total_score,
-            decision=result.decision,
-            reasoning=reasoning,
-            latency_ms=result.latency_ms,
-            over_budget=result.over_budget,
-            override_reason=result.override_reason,
-            compound_incident=result.compound_incident,
-            incident_type=result.incident_type,
+    try:
+        result = await inspect(
+            policy,
+            payload.question,
+            payload.context,
+            payload.response,
             session_id=payload.session_id,
             is_action=payload.is_action,
             action_reversible=payload.action_reversible,
         )
-    )
+        fix = _build_fix(payload, result)
+        reasoning = _build_reasoning(result, policy)
+
+        entry_id = storage.insert_log(
+            storage.LogEntryIn(
+                use_case=policy.label,
+                question=payload.question,
+                response=payload.response,
+                responsibility_score=result.responsibility.score,
+                performance_score=result.performance.score,
+                cost_score=result.cost.score,
+                total_score=result.total_score,
+                decision=result.decision,
+                reasoning=reasoning,
+                latency_ms=result.latency_ms,
+                over_budget=result.over_budget,
+                override_reason=result.override_reason,
+                compound_incident=result.compound_incident,
+                incident_type=result.incident_type,
+                session_id=payload.session_id,
+                is_action=payload.is_action,
+                action_reversible=payload.action_reversible,
+            )
+        )
+    except HTTPException:
+        raise
+    except Exception as err:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Inspection pipeline error: {str(err)}")
 
     return InspectResponse(
         id=entry_id,

@@ -117,16 +117,9 @@ def save_session(session: SessionState) -> None:
         now = datetime.now(timezone.utc).isoformat()
         conn.execute(
             """
-            INSERT INTO sessions (session_id, use_case, turn_count, cumulative_risk, flagged_turns, last_decision, escalation_streak, updated_at)
+            INSERT OR REPLACE INTO sessions
+                (session_id, use_case, turn_count, cumulative_risk, flagged_turns, last_decision, escalation_streak, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(session_id) DO UPDATE SET
-                use_case=excluded.use_case,
-                turn_count=excluded.turn_count,
-                cumulative_risk=excluded.cumulative_risk,
-                flagged_turns=excluded.flagged_turns,
-                last_decision=excluded.last_decision,
-                escalation_streak=excluded.escalation_streak,
-                updated_at=excluded.updated_at
             """,
             (
                 session.session_id,
