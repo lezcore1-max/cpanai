@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="natural">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ControlPlane — AI Risk &amp; Compliance Console</title>
+<title>ControlPlane — Organic Risk Inspection Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+
+<!-- Fluid Organic Wave Accent Background -->
+<div class="top-wave-container">
+  <svg class="top-wave-svg" viewBox="0 0 1440 180" preserveAspectRatio="none">
+    <path fill="#FFB800" fill-opacity="0.9" d="M0,64L48,80C96,96,192,128,288,128C384,128,480,96,576,85.3C672,75,768,85,864,101.3C960,117,1056,139,1152,138.7C1248,139,1344,117,1392,106.7L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+  </svg>
+</div>
 
 <!-- Header Navigation Bar -->
 <header class="top-nav">
@@ -38,21 +45,6 @@
   </div>
 
   <div class="nav-right">
-    <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme (Light / Dark)">
-      <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="5"></circle>
-        <line x1="12" y1="1" x2="12" y2="3"></line>
-        <line x1="12" y1="21" x2="12" y2="23"></line>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-        <line x1="1" y1="12" x2="3" y2="12"></line>
-        <line x1="21" y1="12" x2="23" y2="12"></line>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-      </svg>
-      <span id="themeToggleText">Dark Mode</span>
-    </button>
-
     <div class="status-pill" id="apiStatus">
       <span class="status-dot"></span>
       <span id="statusText">Connected</span>
@@ -67,7 +59,7 @@
   <section class="policy-selector-container">
     <div class="selector-header">
       <span class="selector-title">ACTIVE POLICY CONTEXT</span>
-      <span class="selector-subtitle">Select an enterprise pipeline to inspect payloads against specific risk thresholds</span>
+      <span class="selector-subtitle">Select an enterprise context to evaluate candidate AI responses against active policy gates</span>
     </div>
     
     <div class="segmented-control" id="ucRow"></div>
@@ -97,7 +89,7 @@
 
       <div class="form-group">
         <label for="context">Reference Context <span class="label-optional">(Optional Grounding Document)</span></label>
-        <textarea id="context" rows="3" placeholder="Paste knowledge base excerpt or reference documentation..."></textarea>
+        <textarea id="context" rows="3" placeholder="Paste knowledge base excerpt or reference policy documentation..."></textarea>
       </div>
 
       <div class="form-group">
@@ -135,7 +127,7 @@
 
       <!-- Semantic Risk Gauge Radial Rings -->
       <div class="gauges-grid">
-        <!-- Responsibility Ring (Emerald Green) -->
+        <!-- Responsibility Ring (Emerald Leaf) -->
         <div class="gauge-card gauge-resp" id="gauge-card-resp">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -151,7 +143,7 @@
           <div class="gauge-sub" id="sub-resp">PII &amp; Bias Regex</div>
         </div>
 
-        <!-- Performance Ring (Amber / Orange) -->
+        <!-- Performance Ring (Golden Amber) -->
         <div class="gauge-card gauge-perf" id="gauge-card-perf">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -167,7 +159,7 @@
           <div class="gauge-sub" id="sub-perf">LLM Groundedness</div>
         </div>
 
-        <!-- Cost Ring (Sky Blue) -->
+        <!-- Cost Ring (Ocean Sky Blue) -->
         <div class="gauge-card gauge-cost" id="gauge-card-cost">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
