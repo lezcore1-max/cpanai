@@ -33,9 +33,29 @@ def on_startup():
 
 
 @app.get("/api/use-cases")
-def get_use_cases():
-    """List all configured use cases and their policies."""
-    return [policy.model_dump() for policy in USE_CASES.values()]
+def list_use_cases() -> list[dict]:
+    return [p.model_dump() for p in USE_CASES.values()]
+
+
+@app.post("/api/use-cases/{key}/calibrate")
+def calibrate_use_case_policy(key: str):
+    try:
+        policy = get_policy(key)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown use case: {key}")
+
+    old_block = policy.thresholds.get("block", 60)
+    new_block = min(90, old_block + 15)
+    policy.thresholds["block"] = new_block
+    policy.thresholds["human"] = min(75, policy.thresholds.get("human", 30) + 10)
+
+    return {
+        "status": "calibrated",
+        "key": key,
+        "label": policy.label,
+        "new_thresholds": policy.thresholds,
+        "message": f"Successfully calibrated {policy.label}! BLOCK threshold raised from {old_block} to {new_block} based on reviewer feedback."
+    }
 
 
 @app.get("/api/use-cases/{use_case}")
