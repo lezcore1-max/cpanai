@@ -1,22 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="natural">
+<html lang="en" data-theme="stripe-radar">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ControlPlane — Organic Risk Inspection Console</title>
+<title>ControlPlane — AI Risk Radar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-<!-- Fluid Organic Wave Accent Background -->
-<div class="top-wave-container">
-  <svg class="top-wave-svg" viewBox="0 0 1440 180" preserveAspectRatio="none">
-    <path fill="#FFB800" fill-opacity="0.9" d="M0,64L48,80C96,96,192,128,288,128C384,128,480,96,576,85.3C672,75,768,85,864,101.3C960,117,1056,139,1152,138.7C1248,139,1344,117,1392,106.7L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
-  </svg>
-</div>
+<div class="stripe-grid-bg"></div>
 
 <!-- Header Navigation Bar -->
 <header class="top-nav">
@@ -28,7 +23,7 @@
           <path d="M12 8v4m0 4h.01"/>
         </svg>
       </div>
-      <div class="brand-title">ControlPlane</div>
+      <div class="brand-title">ControlPlane <span class="brand-sub">RADAR</span></div>
     </div>
     
     <div class="env-badge">
@@ -47,7 +42,7 @@
   <div class="nav-right">
     <div class="status-pill" id="apiStatus">
       <span class="status-dot"></span>
-      <span id="statusText">Connected</span>
+      <span id="statusText">API Connected</span>
     </div>
     <div class="user-avatar" title="Enterprise Compliance Admin">EA</div>
   </div>
@@ -58,8 +53,8 @@
   <!-- Policy Segmented Control Bar -->
   <section class="policy-selector-container">
     <div class="selector-header">
-      <span class="selector-title">ACTIVE POLICY CONTEXT</span>
-      <span class="selector-subtitle">Select an enterprise context to evaluate candidate AI responses against active policy gates</span>
+      <span class="selector-title">ACTIVE RISK POLICY</span>
+      <span class="selector-subtitle">Select an enterprise pipeline context to inspect candidate AI payloads</span>
     </div>
     
     <div class="segmented-control" id="ucRow"></div>
@@ -70,8 +65,8 @@
   <!-- Main Inspection Console Grid -->
   <div class="grid" id="console">
     
-    <!-- Left Column: Payload Input Console -->
-    <div class="card form-card">
+    <!-- Left Column: Stripe Pure White Floating Form Card -->
+    <div class="card form-card-stripe">
       <div class="card-header">
         <div class="card-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
@@ -79,12 +74,12 @@
           </svg>
           Payload Inspector
         </div>
-        <span class="badge-neutral">INPUT</span>
+        <span class="badge-stripe">INPUT CONSOLE</span>
       </div>
 
       <div class="form-group">
-        <label for="question">User Question / Prompt</label>
-        <input type="text" id="question" placeholder="e.g. What is your return policy?" autocomplete="off">
+        <label for="question">User Prompt / Question</label>
+        <input type="text" id="question" placeholder="e.g. What is your refund policy?" autocomplete="off">
       </div>
 
       <div class="form-group">
@@ -102,32 +97,31 @@
         <div class="preset-pills" id="sampleRow"></div>
       </div>
 
-      <button class="btn-cta" id="runBtn">
+      <button class="btn-stripe-cta" id="runBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
           <polygon points="5 3 19 12 5 21 5 3"/>
         </svg>
-        <span>Run Policy Inspection</span>
+        <span>Execute Risk Inspection</span>
         <span class="kbd-hint">⌘Enter</span>
       </button>
     </div>
 
-    <!-- Right Column: Risk Inspection Telemetry & Verdict -->
-    <div class="card pipeline-card">
+    <!-- Right Column: Stripe Midnight Radar Telemetry Card -->
+    <div class="card pipeline-card-radar">
       <div class="card-header">
-        <div class="card-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-            <line x1="8" y1="21" x2="16" y2="21"/>
-            <line x1="12" y1="17" x2="12" y2="21"/>
+        <div class="card-title text-white">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon text-cyan">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10"></path>
           </svg>
-          Inspection Telemetry &amp; Verdict
+          Risk Evaluation Radar
         </div>
         <div class="latency-chip" id="latencyBadge" style="display:none;"></div>
       </div>
 
       <!-- Semantic Risk Gauge Radial Rings -->
       <div class="gauges-grid">
-        <!-- Responsibility Ring (Emerald Leaf) -->
+        <!-- Responsibility Ring (Emerald Green) -->
         <div class="gauge-card gauge-resp" id="gauge-card-resp">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -143,7 +137,7 @@
           <div class="gauge-sub" id="sub-resp">PII &amp; Bias Regex</div>
         </div>
 
-        <!-- Performance Ring (Golden Amber) -->
+        <!-- Performance Ring (Magenta Pink) -->
         <div class="gauge-card gauge-perf" id="gauge-card-perf">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -159,7 +153,7 @@
           <div class="gauge-sub" id="sub-perf">LLM Groundedness</div>
         </div>
 
-        <!-- Cost Ring (Ocean Sky Blue) -->
+        <!-- Cost Ring (Electric Cyan) -->
         <div class="gauge-card gauge-cost" id="gauge-card-cost">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -196,16 +190,16 @@
   </div>
 
   <!-- Audit Trail & Metrics Section -->
-  <section class="card audit-card" id="audit">
+  <section class="card audit-card-radar" id="audit">
     <div class="card-header">
-      <div class="card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+      <div class="card-title text-white">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon text-cyan">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
           <line x1="16" y1="13" x2="8" y2="13"/>
           <line x1="16" y1="17" x2="8" y2="17"/>
         </svg>
-        Audit Log &amp; System Accuracy Telemetry
+        Audit Log &amp; Radar System Metrics
       </div>
       <button class="btn-ghost" id="clearBtn">Clear History</button>
     </div>
