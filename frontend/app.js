@@ -3,7 +3,7 @@ const API = ""; // same-origin FastAPI backend
 let USE_CASES = {};
 let SAMPLES = {};
 let currentUC = null;
-let currentTheme = localStorage.getItem('cp-theme') || 'light';
+let currentTheme = localStorage.getItem('cp-theme') || 'dark';
 
 const CIRCUMFERENCE = 238.76; // 2 * PI * 38 for SVG radial gauge ring
 
@@ -46,7 +46,7 @@ function initTheme() {
 }
 
 function toggleTheme() {
-  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   localStorage.setItem('cp-theme', currentTheme);
   document.documentElement.setAttribute('data-theme', currentTheme);
   updateThemeBtnLabel();
@@ -55,7 +55,7 @@ function toggleTheme() {
 function updateThemeBtnLabel() {
   const txt = document.getElementById('themeToggleText');
   if (txt) {
-    txt.textContent = currentTheme === 'light' ? 'Dark Mode' : 'Light Mode';
+    txt.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
   }
 }
 
