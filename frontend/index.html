@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ControlPlane — Enterprise AI Risk Inspection Console</title>
+<title>ControlPlane — Risk Inspection Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -67,7 +67,7 @@
   <section class="policy-selector-container">
     <div class="selector-header">
       <span class="selector-title">ACTIVE POLICY CONTEXT</span>
-      <span class="selector-subtitle">Select an enterprise pipeline context to inspect candidate AI payloads</span>
+      <span class="selector-subtitle">Select an enterprise pipeline to inspect payloads against specific risk thresholds</span>
     </div>
     
     <div class="segmented-control" id="ucRow"></div>
@@ -75,7 +75,7 @@
     <div class="policy-details-bar" id="policyNote"></div>
   </section>
 
-  <!-- Main Inspection Console Grid (Cohesive Dark Slate Panels) -->
+  <!-- Main Inspection Console Grid -->
   <div class="grid" id="console">
     
     <!-- Left Column: Payload Inspector -->
@@ -87,17 +87,17 @@
           </svg>
           Payload Inspector
         </div>
-        <span class="badge-neutral">INPUT CONSOLE</span>
+        <span class="badge-neutral">INPUT</span>
       </div>
 
       <div class="form-group">
-        <label for="question">User Prompt / Question</label>
+        <label for="question">User Question / Prompt</label>
         <input type="text" id="question" placeholder="e.g. What is your refund policy?" autocomplete="off">
       </div>
 
       <div class="form-group">
         <label for="context">Reference Context <span class="label-optional">(Optional Grounding Document)</span></label>
-        <textarea id="context" rows="3" placeholder="Paste knowledge base excerpt or reference policy documentation..."></textarea>
+        <textarea id="context" rows="3" placeholder="Paste knowledge base excerpt or reference documentation..."></textarea>
       </div>
 
       <div class="form-group">
@@ -119,22 +119,23 @@
       </button>
     </div>
 
-    <!-- Right Column: Risk Evaluation Radar -->
+    <!-- Right Column: Inspection Telemetry & Verdict -->
     <div class="card pipeline-card">
       <div class="card-header">
         <div class="card-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon icon-primary">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M12 2a10 10 0 0 1 10 10"></path>
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
           </svg>
-          Risk Evaluation Radar
+          Inspection Telemetry &amp; Verdict
         </div>
         <div class="latency-chip" id="latencyBadge" style="display:none;"></div>
       </div>
 
       <!-- Semantic Risk Gauge Radial Rings -->
       <div class="gauges-grid">
-        <!-- Responsibility Ring (Emerald Green) -->
+        <!-- Responsibility Ring -->
         <div class="gauge-card gauge-resp" id="gauge-card-resp">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -150,7 +151,7 @@
           <div class="gauge-sub" id="sub-resp">PII &amp; Bias Regex</div>
         </div>
 
-        <!-- Performance Ring (Magenta / Crimson) -->
+        <!-- Performance Ring -->
         <div class="gauge-card gauge-perf" id="gauge-card-perf">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -166,7 +167,7 @@
           <div class="gauge-sub" id="sub-perf">LLM Groundedness</div>
         </div>
 
-        <!-- Cost Ring (Electric Cyan) -->
+        <!-- Cost Ring -->
         <div class="gauge-card gauge-cost" id="gauge-card-cost">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">

@@ -1,46 +1,59 @@
-/* ── ControlPlane Dark Slate Design System — Sleek Enterprise AI Dashboard ── */
+/* ── ControlPlane Enterprise Risk Console — Fully Scoped Light & Dark Themes ── */
 
 :root, [data-theme="dark"] {
-  --bg-app: #0A0F1D;
-  --bg-surface: #141E33;
-  --bg-surface-elevated: #0D1426;
-  --bg-surface-hover: #1E2B47;
+  --bg-app: #070A14;
+  --bg-surface: #0D1322;
+  --bg-surface-elevated: #090D18;
+  --bg-surface-hover: #141D33;
 
-  --border-subtle: rgba(99, 102, 241, 0.2);
-  --border-medium: rgba(255, 255, 255, 0.15);
-  --border-focus: #6366F1;
+  --border-subtle: #1A233A;
+  --border-medium: #253254;
+  --border-focus: #4F46E5;
 
-  --primary: #6366F1;
-  --primary-hover: #4F46E5;
-  --primary-subtle: rgba(99, 102, 241, 0.18);
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-subtle: rgba(79, 70, 229, 0.18);
 
   --gauge-track: rgba(255, 255, 255, 0.08);
   --resp-color: #10B981;
-  --resp-subtle: rgba(16, 185, 129, 0.12);
+  --resp-subtle: rgba(16, 185, 129, 0.1);
 
-  --perf-color: #F43F5E;
-  --perf-subtle: rgba(244, 63, 94, 0.12);
+  --perf-color: #38BDF8;
+  --perf-subtle: rgba(56, 189, 248, 0.1);
 
-  --cost-color: #06B6D4;
-  --cost-subtle: rgba(6, 182, 212, 0.12);
+  --cost-color: #0284C7;
+  --cost-subtle: rgba(2, 132, 199, 0.1);
 
   --safe: #10B981;
-  --safe-subtle: rgba(16, 185, 129, 0.15);
+  --safe-subtle: rgba(16, 185, 129, 0.14);
   --warn: #F59E0B;
-  --warn-subtle: rgba(245, 158, 11, 0.15);
+  --warn-subtle: rgba(245, 158, 11, 0.14);
   --danger: #EF4444;
-  --danger-subtle: rgba(239, 68, 68, 0.15);
-  --human: #6366F1;
-  --human-subtle: rgba(99, 102, 241, 0.15);
+  --danger-subtle: rgba(239, 68, 68, 0.14);
+  --human: #818CF8;
+  --human-subtle: rgba(129, 140, 248, 0.14);
 
   --text-title: #FFFFFF;
   --text-main: #E2E8F0;
-  --text-muted: #CBD5E1;
-  --text-dim: #94A3B8;
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
+
+  --nav-tab-active-bg: #1E2438;
+  --nav-tab-active-text: #FFFFFF;
+  --seg-active-bg: #141D33;
+  --seg-active-border: #253254;
+  --seg-active-title: #FFFFFF;
+  --seg-active-desc: #94A3B8;
+  --seg-sla-bg: #1E2540;
+  --seg-sla-text: #818CF8;
+
+  --input-bg: #070B16;
+  --status-bg: #0A1C16;
+  --status-text: #10B981;
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="light"] {
@@ -58,28 +71,41 @@
   --primary-subtle: rgba(79, 70, 229, 0.1);
 
   --gauge-track: #E2E8F0;
-  --resp-color: #10B981;
-  --resp-subtle: rgba(16, 185, 129, 0.08);
+  --resp-color: #059669;
+  --resp-subtle: rgba(5, 150, 105, 0.08);
 
-  --perf-color: #F43F5E;
-  --perf-subtle: rgba(244, 63, 94, 0.08);
+  --perf-color: #0284C7;
+  --perf-subtle: rgba(2, 132, 199, 0.08);
 
-  --cost-color: #06B6D4;
-  --cost-subtle: rgba(6, 182, 212, 0.08);
+  --cost-color: #2563EB;
+  --cost-subtle: rgba(37, 99, 235, 0.08);
 
-  --safe: #10B981;
-  --safe-subtle: rgba(16, 185, 129, 0.1);
-  --warn: #F59E0B;
-  --warn-subtle: rgba(245, 158, 11, 0.1);
-  --danger: #EF4444;
-  --danger-subtle: rgba(239, 68, 68, 0.1);
-  --human: #6366F1;
-  --human-subtle: rgba(99, 102, 241, 0.1);
+  --safe: #059669;
+  --safe-subtle: rgba(5, 150, 105, 0.1);
+  --warn: #D97706;
+  --warn-subtle: rgba(217, 119, 6, 0.1);
+  --danger: #DC2626;
+  --danger-subtle: rgba(220, 38, 38, 0.1);
+  --human: #4F46E5;
+  --human-subtle: rgba(79, 70, 229, 0.1);
 
   --text-title: #0F172A;
   --text-main: #1E293B;
   --text-muted: #475569;
   --text-dim: #64748B;
+
+  --nav-tab-active-bg: #EEF2FF;
+  --nav-tab-active-text: #4F46E5;
+  --seg-active-bg: #EEF2FF;
+  --seg-active-border: #818CF8;
+  --seg-active-title: #4F46E5;
+  --seg-active-desc: #334155;
+  --seg-sla-bg: #4F46E5;
+  --seg-sla-text: #FFFFFF;
+
+  --input-bg: #F8FAFC;
+  --status-bg: #ECFDF5;
+  --status-text: #059669;
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.03);
 }
@@ -113,7 +139,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .nav-left {
@@ -137,7 +163,6 @@ body {
   align-items: center;
   justify-content: center;
   color: #FFFFFF;
-  box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
 }
 
 .brand-icon svg {
@@ -196,10 +221,10 @@ body {
 }
 
 .nav-tab.active {
-  color: #FFFFFF;
+  color: var(--nav-tab-active-text);
   font-weight: 600;
-  background: var(--primary-subtle);
-  border: 1px solid var(--border-subtle);
+  background: var(--nav-tab-active-bg);
+  border: 1px solid var(--border-medium);
 }
 
 .nav-right {
@@ -239,8 +264,8 @@ body {
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--safe);
-  background: var(--safe-subtle);
+  color: var(--status-text);
+  background: var(--status-bg);
   border: 1px solid rgba(16, 185, 129, 0.3);
   padding: 5px 12px;
   border-radius: 20px;
@@ -310,7 +335,7 @@ body {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 5px;
+  padding: 6px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
@@ -338,10 +363,9 @@ body {
 }
 
 .seg-btn.active {
-  background: var(--bg-surface-elevated);
-  border-color: var(--primary);
-  color: var(--text-title);
-  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+  background: var(--seg-active-bg);
+  border-color: var(--seg-active-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .seg-title {
@@ -350,15 +374,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--text-title);
+  color: var(--text-muted);
+}
+
+.seg-btn.active .seg-title {
+  color: var(--seg-active-title);
 }
 
 .seg-sla {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--cost-color);
-  background: var(--cost-subtle);
+  color: var(--seg-sla-text);
+  background: var(--seg-sla-bg);
   padding: 2px 7px;
   border-radius: 4px;
 }
@@ -370,6 +398,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.seg-btn.active .seg-desc {
+  color: var(--seg-active-desc);
 }
 
 .policy-details-bar {
@@ -388,7 +420,7 @@ body {
   color: var(--text-title);
 }
 
-/* ── Main Grid (Matching Cohesive Panels) ─────────────────────────────── */
+/* ── Main Grid ────────────────────────────────────────────────────────── */
 .grid {
   display: grid;
   grid-template-columns: 1fr 1.15fr;
@@ -440,8 +472,9 @@ body {
   font-size: 10px;
   font-weight: 700;
   font-family: var(--font-mono);
-  color: var(--primary);
-  background: var(--primary-subtle);
+  color: var(--text-dim);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
   padding: 3px 8px;
   border-radius: 4px;
 }
@@ -473,7 +506,7 @@ label {
 
 input[type="text"], textarea {
   width: 100%;
-  background: var(--bg-surface-elevated);
+  background: var(--input-bg);
   border: 1px solid var(--border-medium);
   border-radius: 9px;
   color: var(--text-main);
@@ -488,7 +521,7 @@ input[type="text"], textarea {
 input[type="text"]:focus, textarea:focus {
   outline: none;
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
 }
 
 .preset-section {
@@ -525,10 +558,10 @@ input[type="text"]:focus, textarea:focus {
 .preset-btn:hover {
   background: var(--bg-surface-hover);
   color: var(--text-title);
-  border-color: var(--primary);
+  border-color: var(--border-medium);
 }
 
-/* ── Prominent Action CTA Button ─────────────────────────────────────── */
+/* ── Primary Action CTA Button ───────────────────────────────────────── */
 .btn-cta {
   margin-top: 20px;
   width: 100%;
@@ -544,14 +577,14 @@ input[type="text"]:focus, textarea:focus {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 18px rgba(79, 70, 229, 0.35);
   transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 
 .btn-cta:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6px 22px rgba(79, 70, 229, 0.45);
 }
 
 .btn-cta:active {
@@ -580,7 +613,7 @@ input[type="text"]:focus, textarea:focus {
   margin-left: 6px;
 }
 
-/* ── Cohesive Radial Gauges ────────────────────────────────────────────── */
+/* ── Radial Gauges Cards ──────────────────────────────────────────────── */
 .gauges-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -592,27 +625,12 @@ input[type="text"]:focus, textarea:focus {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 14px 10px;
+  padding: 16px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   transition: border-color 0.15s ease;
-}
-
-.gauge-card.gauge-resp {
-  background: var(--resp-subtle);
-  border-color: rgba(16, 185, 129, 0.25);
-}
-
-.gauge-card.gauge-perf {
-  background: var(--perf-subtle);
-  border-color: rgba(244, 63, 94, 0.25);
-}
-
-.gauge-card.gauge-cost {
-  background: var(--cost-subtle);
-  border-color: rgba(6, 182, 212, 0.25);
 }
 
 .gauge-ring-wrap {
@@ -661,10 +679,6 @@ input[type="text"]:focus, textarea:focus {
   color: var(--text-title);
 }
 
-.score-resp { color: var(--resp-color); }
-.score-perf { color: var(--perf-color); }
-.score-cost { color: var(--cost-color); }
-
 .gauge-unit {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -685,7 +699,7 @@ input[type="text"]:focus, textarea:focus {
 
 /* ── Verdict Banner ───────────────────────────────────────────────────── */
 .verdict-banner {
-  padding: 18px;
+  padding: 22px 18px;
   border-radius: 12px;
   text-align: center;
   border: 1px solid var(--border-subtle);
@@ -697,6 +711,7 @@ input[type="text"]:focus, textarea:focus {
   font-weight: 800;
   font-size: 19px;
   letter-spacing: 0.02em;
+  color: var(--text-title);
 }
 
 .verdict-subtitle {
@@ -726,7 +741,7 @@ input[type="text"]:focus, textarea:focus {
 }
 
 .verdict-banner.HUMAN {
-  border-color: rgba(99, 102, 241, 0.4);
+  border-color: rgba(129, 140, 248, 0.4);
   background: var(--human-subtle);
   color: var(--human);
   animation: slideFadeIn 0.3s ease-out;
@@ -757,7 +772,7 @@ input[type="text"]:focus, textarea:focus {
   border-radius: 5px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
-  color: var(--cost-color);
+  color: var(--primary);
 }
 
 /* ── Reasoning & Callouts Container ───────────────────────────────────── */
@@ -795,7 +810,7 @@ input[type="text"]:focus, textarea:focus {
 
 .callout-compound {
   background: var(--human-subtle);
-  border: 1px solid rgba(99, 102, 241, 0.35);
+  border: 1px solid rgba(129, 140, 248, 0.35);
   color: var(--human);
   border-radius: 7px;
   padding: 10px 14px;
