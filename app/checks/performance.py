@@ -95,11 +95,38 @@ def _heuristic_fallback(response: str, no_context: bool = False) -> PerformanceR
     )
 
 
+import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
 def _sync_generate(api_key: str, prompt: str):
-    ssl._create_default_https_context = ssl._create_unverified_context
-    genai.configure(api_key=api_key, transport="rest")
-    model = genai.GenerativeModel(_JUDGE_MODEL)
-    return model.generate_content(prompt, generation_config=GenerationConfig(max_output_tokens=200))
+    models = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
+    last_err = None
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        try:
+            r = requests.post(url, json=payload, verify=False, timeout=8.0)
+            if r.status_code == 200:
+                data = r.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                class Resp:
+                    pass
+                res = Resp()
+                res.text = text
+                return res
+            elif r.status_code == 404:
+                continue
+            else:
+                raise Exception(f"HTTP {r.status_code}: {r.text}")
+        except Exception as e:
+            last_err = e
+            if "404" in str(e):
+                continue
+            raise e
+    if last_err:
+        raise last_err
 
 
 async def check_performance(*args, **kwargs) -> PerformanceResult:
