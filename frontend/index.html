@@ -1,17 +1,15 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="stripe-radar">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ControlPlane — AI Risk Radar</title>
+<title>ControlPlane — Enterprise AI Compliance Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
-<div class="stripe-grid-bg"></div>
 
 <!-- Header Navigation Bar -->
 <header class="top-nav">
@@ -23,7 +21,7 @@
           <path d="M12 8v4m0 4h.01"/>
         </svg>
       </div>
-      <div class="brand-title">ControlPlane <span class="brand-sub">RADAR</span></div>
+      <div class="brand-title">ControlPlane</div>
     </div>
     
     <div class="env-badge">
@@ -40,9 +38,24 @@
   </div>
 
   <div class="nav-right">
+    <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme (Light / Dark)">
+      <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <span id="themeToggleText">Dark Mode</span>
+    </button>
+
     <div class="status-pill" id="apiStatus">
       <span class="status-dot"></span>
-      <span id="statusText">API Connected</span>
+      <span id="statusText">Connected</span>
     </div>
     <div class="user-avatar" title="Enterprise Compliance Admin">EA</div>
   </div>
@@ -53,7 +66,7 @@
   <!-- Policy Segmented Control Bar -->
   <section class="policy-selector-container">
     <div class="selector-header">
-      <span class="selector-title">ACTIVE RISK POLICY</span>
+      <span class="selector-title">ACTIVE POLICY CONTEXT</span>
       <span class="selector-subtitle">Select an enterprise pipeline context to inspect candidate AI payloads</span>
     </div>
     
@@ -62,11 +75,11 @@
     <div class="policy-details-bar" id="policyNote"></div>
   </section>
 
-  <!-- Main Inspection Console Grid -->
+  <!-- Main Inspection Console Grid (Unified Cohesive Panels) -->
   <div class="grid" id="console">
     
-    <!-- Left Column: Stripe Pure White Floating Form Card -->
-    <div class="card form-card-stripe">
+    <!-- Left Column: Payload Inspector -->
+    <div class="card form-card">
       <div class="card-header">
         <div class="card-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
@@ -74,7 +87,7 @@
           </svg>
           Payload Inspector
         </div>
-        <span class="badge-stripe">INPUT CONSOLE</span>
+        <span class="badge-neutral">INPUT CONSOLE</span>
       </div>
 
       <div class="form-group">
@@ -97,20 +110,20 @@
         <div class="preset-pills" id="sampleRow"></div>
       </div>
 
-      <button class="btn-stripe-cta" id="runBtn">
+      <button class="btn-cta" id="runBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
           <polygon points="5 3 19 12 5 21 5 3"/>
         </svg>
-        <span>Execute Risk Inspection</span>
+        <span>Run Policy Inspection</span>
         <span class="kbd-hint">⌘Enter</span>
       </button>
     </div>
 
-    <!-- Right Column: Stripe Midnight Radar Telemetry Card -->
-    <div class="card pipeline-card-radar">
+    <!-- Right Column: Risk Evaluation Radar (Matching Unified Panel Styling) -->
+    <div class="card pipeline-card">
       <div class="card-header">
-        <div class="card-title text-white">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon text-cyan">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon icon-primary">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M12 2a10 10 0 0 1 10 10"></path>
           </svg>
@@ -137,7 +150,7 @@
           <div class="gauge-sub" id="sub-resp">PII &amp; Bias Regex</div>
         </div>
 
-        <!-- Performance Ring (Magenta Pink) -->
+        <!-- Performance Ring (Magenta Pink / Amber) -->
         <div class="gauge-card gauge-perf" id="gauge-card-perf">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -153,7 +166,7 @@
           <div class="gauge-sub" id="sub-perf">LLM Groundedness</div>
         </div>
 
-        <!-- Cost Ring (Electric Cyan) -->
+        <!-- Cost Ring (Electric Cyan / Sky Blue) -->
         <div class="gauge-card gauge-cost" id="gauge-card-cost">
           <div class="gauge-ring-wrap">
             <svg class="gauge-svg" viewBox="0 0 100 100">
@@ -190,16 +203,16 @@
   </div>
 
   <!-- Audit Trail & Metrics Section -->
-  <section class="card audit-card-radar" id="audit">
+  <section class="card audit-card" id="audit">
     <div class="card-header">
-      <div class="card-title text-white">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon text-cyan">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon icon-primary">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
           <line x1="16" y1="13" x2="8" y2="13"/>
           <line x1="16" y1="17" x2="8" y2="17"/>
         </svg>
-        Audit Log &amp; Radar System Metrics
+        Audit Log &amp; System Accuracy Telemetry
       </div>
       <button class="btn-ghost" id="clearBtn">Clear History</button>
     </div>

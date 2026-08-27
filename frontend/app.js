@@ -3,10 +3,13 @@ const API = ""; // same-origin FastAPI backend
 let USE_CASES = {};
 let SAMPLES = {};
 let currentUC = null;
+let currentTheme = localStorage.getItem('cp-theme') || 'light';
 
 const CIRCUMFERENCE = 238.76; // 2 * PI * 38 for SVG radial gauge ring
 
 async function boot() {
+  initTheme();
+
   try {
     const list = await (await fetch(`${API}/api/use-cases`)).json();
     USE_CASES = Object.fromEntries(list.map(uc => [uc.key, uc]));
@@ -24,6 +27,7 @@ async function boot() {
 
   document.getElementById('runBtn').onclick = runInspection;
   document.getElementById('clearBtn').onclick = clearLog;
+  document.getElementById('themeToggleBtn').onclick = toggleTheme;
 
   // Keyboard shortcut listener: Cmd/Ctrl + Enter triggers inspection
   document.addEventListener('keydown', (e) => {
@@ -32,6 +36,27 @@ async function boot() {
       runInspection();
     }
   });
+}
+
+/* ── Theme Switcher Controller ────────────────────────────────────────── */
+
+function initTheme() {
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeBtnLabel();
+}
+
+function toggleTheme() {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  localStorage.setItem('cp-theme', currentTheme);
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeBtnLabel();
+}
+
+function updateThemeBtnLabel() {
+  const txt = document.getElementById('themeToggleText');
+  if (txt) {
+    txt.textContent = currentTheme === 'light' ? 'Dark Mode' : 'Light Mode';
+  }
 }
 
 function setStatus(ok) {
