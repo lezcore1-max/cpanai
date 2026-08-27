@@ -129,20 +129,12 @@ def _apply_hard_overrides(
                 f"high performance risk ({performance.score}/100) — '{performance.reasoning}'",
             )
 
-    # ── Tier 3: FIX-escalation patterns ──────────────────────────────────────
-    # Auto-redactable PII (email / phone) and severe cost overruns trigger FIX auto-remediation.
-    if current_decision in ("PASS", "HUMAN"):
-        for flag in responsibility.flags:
-            if any(kw in flag for kw in ("Email address", "Phone number")):
-                return "FIX", _reason(
-                    "FIX",
-                    f"auto-redactable PII match — '{flag}'",
-                )
-
     # ── Tier 4: Session Compounding Risk & Agentic Action Overrides ──────────
+    # Placed above Tier 3 FIX so session escalation streaks and irreversible actions
+    # properly override FIX decisions to HUMAN or BLOCK.
     if is_action and not action_reversible and getattr(policy, "require_human_for_irreversible_actions", True):
         if current_decision not in ("BLOCK", "HUMAN"):
-            return "HUMAN", _reason(
+            current_decision, override_reason = "HUMAN", _reason(
                 "HUMAN",
                 "irreversible agentic action requires mandatory human review",
             )
@@ -153,7 +145,7 @@ def _apply_hard_overrides(
         block_thresh = policy.thresholds.get("block", 60)
 
         if streak >= 3 and current_decision not in ("BLOCK", "HUMAN"):
-            return "HUMAN", _reason(
+            current_decision, override_reason = "HUMAN", _reason(
                 "HUMAN",
                 f"session escalation pattern: {streak} consecutive flagged turns",
             )
@@ -162,6 +154,20 @@ def _apply_hard_overrides(
                 "BLOCK",
                 f"cumulative session risk ({cum_risk:.0f}) exceeds sustained-pattern threshold ({block_thresh * 1.5:.0f})",
             )
+
+    # If session/action override escalated decision to HUMAN or BLOCK, return it early
+    if current_decision in ("BLOCK", "HUMAN"):
+        return current_decision, override_reason
+
+    # ── Tier 3: FIX-escalation patterns ──────────────────────────────────────
+    # Auto-redactable PII (email / phone) and severe cost overruns trigger FIX auto-remediation.
+    if current_decision == "PASS":
+        for flag in responsibility.flags:
+            if any(kw in flag for kw in ("Email address", "Phone number")):
+                return "FIX", _reason(
+                    "FIX",
+                    f"auto-redactable PII match — '{flag}'",
+                )
 
     return current_decision, None
 
