@@ -36,7 +36,7 @@ except Exception:
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 
-_JUDGE_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+_JUDGE_MODEL = "gemini-3.1-flash-lite"
 
 _JUDGE_PROMPT = """\
 You are a strict groundedness and safety auditor. Given a QUESTION, an optional \
@@ -98,14 +98,8 @@ def _heuristic_fallback(response: str, no_context: bool = False) -> PerformanceR
 def _sync_generate(api_key: str, prompt: str):
     ssl._create_default_https_context = ssl._create_unverified_context
     genai.configure(api_key=api_key, transport="rest")
-    for m in [_JUDGE_MODEL, "gemini-2.0-flash-lite", "gemini-1.5-flash"]:
-        try:
-            model = genai.GenerativeModel(m)
-            return model.generate_content(prompt, generation_config=GenerationConfig(max_output_tokens=200))
-        except Exception as e:
-            if "404" in str(e) or "not found" in str(e).lower():
-                continue
-            raise e
+    model = genai.GenerativeModel(_JUDGE_MODEL)
+    return model.generate_content(prompt, generation_config=GenerationConfig(max_output_tokens=200))
 
 
 async def check_performance(*args, **kwargs) -> PerformanceResult:
