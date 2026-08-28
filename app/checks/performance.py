@@ -101,7 +101,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def _sync_generate(api_key: str, prompt: str):
-    models = ["gemini-3.1-flash-lite"]
+    models = ["gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"]
     last_err = None
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
