@@ -52,13 +52,13 @@ _PATTERNS = [
      "Account takeover / credential disclosure claim", 60),
 
     # ── Bias / Fairness ──────────────────────────────────────────────────────
-    (re.compile(r"\b(pregnant|maternity|elderly|old age|age|\d+\s*years?\s*old|public assistance|disability|disability income|section 8|national origin|race|gender|sex)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable|suggests declining|fraudulent|more likely)\b", re.I),
+    (re.compile(r"\b(pregnant|maternity|elderly|old age|age|\d+\s*years?\s*old|public assistance|disability|disability income|section 8|national origin|race|gender|sex|marital status|religion|ethnicity|citizenship)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable|suggests declining|fraudulent|more likely|not promote|disqualify|refuse)\b", re.I),
      "Protected characteristic linked to risk or outcome", 50),
-    (re.compile(r"\b(zip code|neighborhood|demographic|census tract|area)\b.*?\b(correlates?|defaults?|decline|risk|unreliable|fraudulent|higher|more claims)\b", re.I),
+    (re.compile(r"\b(zip code|neighborhood|demographic|census tract|area|location|region|territory|postal code)\b.*?\b(correlates?|defaults?|decline|risk|unreliable|fraudulent|higher|more claims|extra scrutiny|suspicious|flagged|deny)\b", re.I),
      "Proxy-discrimination pattern (group characteristic used as individual risk proxy)", 40),
-    (re.compile(r"\b(statistically that population|historically that background|that background tend to be)\b", re.I),
+    (re.compile(r"\b(people|candidates|applicants|individuals|members|folks|anyone|that|those)\s+(from|with|in|of)?\s*(that|those|this)?\s*(group|background|demographic|population|community|neighborhood|area|kind of background)\b.*?\b(rarely|unreliable|don\'t follow|dont follow|less reliable|fail|defaults?|work out|riskier|dishonest|untrustworthy|unqualified|problematic|deny)\b", re.I),
      "statistical group generalization", 40),
-    (re.compile(r"\b(regardless of their individual|group inference overriding)\b", re.I),
+    (re.compile(r"\b(regardless|irrespective|despite|without regard to)\s+(of\s+)?(their|his|her|its|the)?\s*(individual|personal|specific|actual|prior|past)\s+(purchase|history|record|score|performance|credit|merit)\b", re.I),
      "group inference overriding", 40),
 ]
 

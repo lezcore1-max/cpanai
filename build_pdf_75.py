@@ -114,9 +114,9 @@ def run_all_cases_with_rate_limiting():
         try:
             s_res = run_single(BASE_URL, c)
             raw_data = s_res.get("raw_data", {})
-            actual = s_res["actual"]
-            dec_ok = s_res["decision_ok"]
-            chk_ok = s_res["checks_ok"]
+            actual = s_res.get("actual", "ERROR")
+            dec_ok = s_res.get("decision_ok", False)
+            chk_ok = s_res.get("checks_ok", False)
             
             res_entry = {
                 "id": cid,
@@ -166,9 +166,10 @@ def run_all_cases_with_rate_limiting():
 
         try:
             seq_res = run_sequence(BASE_URL, seq)
-            actual = seq_res["actual"]
-            dec_ok = seq_res["decision_ok"]
-            chk_ok = seq_res["checks_ok"]
+            raw_data = seq_res.get("raw_data", {})
+            actual = seq_res.get("actual", "ERROR")
+            dec_ok = seq_res.get("decision_ok", False)
+            chk_ok = seq_res.get("checks_ok", False)
 
             res_entry = {
                 "id": cid,
