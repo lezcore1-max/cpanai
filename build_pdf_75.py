@@ -157,9 +157,9 @@ def run_all_cases_with_rate_limiting():
             }
         results.append(res_entry)
 
-        # Rate-limiting: If case calls LLM (or uses context/contradiction), pause 5.5s (~10.9 RPM). Otherwise 0.5s.
+        # Rate-limiting: If case calls LLM (or uses context/contradiction), pause 6.0s (10.0 RPM). Otherwise 0.5s.
         if mode == "llm" or c.get("context"):
-            time.sleep(5.5)
+            time.sleep(6.0)
         else:
             time.sleep(0.5)
 
@@ -179,7 +179,7 @@ def run_all_cases_with_rate_limiting():
                     is_action=seq.get("is_action", False),
                     action_reversible=seq.get("action_reversible", True),
                 )
-                time.sleep(5.5)
+                time.sleep(6.0)
             
             actual = last_data.get("decision")
             dec_ok = actual in seq["final_expected"]
