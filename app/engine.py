@@ -102,6 +102,18 @@ def _apply_hard_overrides(
             f"extreme ungroundedness/hallucination (performance risk {performance.score}/100) — '{performance.reasoning}'",
         )
 
+    # Semantic bias detection in regulated decision contexts (ECOA / FHA compliance).
+    if (
+        performance
+        and performance.bias_detected
+        and use_case == "decision"
+        and performance.confidence in ("high", "medium")
+    ):
+        return "BLOCK", _reason(
+            "BLOCK",
+            f"semantic bias / proxy discrimination detected in regulated decision context (ECOA/FHA) — '{performance.reasoning}'",
+        )
+
     # ── Tier 2: HUMAN-escalation patterns ────────────────────────────────────
     # Gated on current_decision not already being BLOCK or HUMAN — this is the
     # explicit no-downgrade guard. A score-based BLOCK is never demoted here.
@@ -112,6 +124,17 @@ def _apply_hard_overrides(
                     "HUMAN",
                     f"noisy PII or bias pattern — verify manually before routing — '{flag}'",
                 )
+
+        # Semantic bias detection in general / unregulated contexts (escalates to HUMAN).
+        if (
+            performance
+            and performance.bias_detected
+            and performance.confidence in ("high", "medium")
+        ):
+            return "HUMAN", _reason(
+                "HUMAN",
+                f"semantic group bias / proxy-discrimination detected — '{performance.reasoning}'",
+            )
 
         if performance and performance.confidence in ("high", "medium") and performance.score >= 70:
             return "HUMAN", _reason(
