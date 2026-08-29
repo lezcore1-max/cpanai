@@ -37,6 +37,7 @@ import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 
 _JUDGE_MODEL = "gemini-3.1-flash-lite"
+_JUDGE_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
 
 _JUDGE_PROMPT = """\
 You are a strict groundedness and safety auditor. Given a QUESTION, an optional \
@@ -101,7 +102,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def _sync_generate(api_key: str, prompt: str):
-    models = ["gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"]
+    models = _JUDGE_MODELS
     last_err = None
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
