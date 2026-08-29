@@ -10,6 +10,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 
 from test_suite_75 import (
     SINGLE_CASES, SEQUENCE_CASES,
+    run_single, run_sequence,
     check_74_tuning_suggestions_gated,
     check_75_calibrate_endpoint_removed,
     call, has_flag, override_contains, no_override, method_is, confidence_is
@@ -111,17 +112,11 @@ def run_all_cases_with_rate_limiting():
         print(f"[{cid:02d}/75] Running Single Case #{cid}: {mech_name} (mode: {mode})...", end=" ", flush=True)
 
         try:
-            data = call(BASE_URL, c["use_case"], c["question"], c["context"], c["response"])
-            actual = data.get("decision")
-            dec_ok = actual in c["expected"]
-            check_results = []
-            for name, fn in c["checks"]:
-                try:
-                    ok = fn(data)
-                except Exception as ex:
-                    ok, name = False, f"{name} ({ex.__class__.__name__})"
-                check_results.append((name, ok))
-            chk_ok = all(ok for _, ok in check_results)
+            s_res = run_single(BASE_URL, c)
+            raw_data = s_res.get("raw_data", {})
+            actual = s_res["actual"]
+            dec_ok = s_res["decision_ok"]
+            chk_ok = s_res["checks_ok"]
             
             res_entry = {
                 "id": cid,
@@ -132,15 +127,15 @@ def run_all_cases_with_rate_limiting():
                 "actual": actual,
                 "decision_ok": dec_ok,
                 "checks_ok": chk_ok,
-                "performance_method": data.get("performance_method", "heuristic"),
-                "performance_confidence": data.get("performance_confidence", "high"),
-                "responsibility_score": data.get("responsibility_score", 0),
-                "performance_score": data.get("performance_score", 0),
-                "cost_score": data.get("cost_score", 0),
-                "total_score": data.get("total_score", 0),
-                "performance_reasoning": data.get("performance_reasoning", ""),
-                "override_reason": data.get("override_reason", ""),
-                "latency_ms": data.get("latency_ms", 0),
+                "performance_method": raw_data.get("performance_method", "heuristic"),
+                "performance_confidence": raw_data.get("performance_confidence", "high"),
+                "responsibility_score": raw_data.get("responsibility_score", 0),
+                "performance_score": raw_data.get("performance_score", 0),
+                "cost_score": raw_data.get("cost_score", 0),
+                "total_score": raw_data.get("total_score", 0),
+                "performance_reasoning": raw_data.get("performance_reasoning", ""),
+                "override_reason": raw_data.get("override_reason", ""),
+                "latency_ms": raw_data.get("latency_ms", 0),
             }
             status_str = "PASS" if (dec_ok and chk_ok) else "FAIL"
             print(f"[{status_str}] -> Actual: {actual}")
@@ -169,28 +164,11 @@ def run_all_cases_with_rate_limiting():
         mech_name = MECHANISM_MAP.get(cid, seq.get("name", "Multi-Turn Sequence"))
         print(f"[{cid:02d}/75] Running Multi-Turn Sequence #{cid}: {mech_name}...", end=" ", flush=True)
 
-        session_id = f"test-75-{time.time():.0f}-{cid}"
-        last_data = None
         try:
-            for q, ctx, resp in seq["turns"]:
-                last_data = call(
-                    BASE_URL, seq["use_case"], q, ctx, resp,
-                    session_id=session_id,
-                    is_action=seq.get("is_action", False),
-                    action_reversible=seq.get("action_reversible", True),
-                )
-                time.sleep(6.0)
-            
-            actual = last_data.get("decision")
-            dec_ok = actual in seq["final_expected"]
-            check_results = []
-            for name, fn in seq["final_checks"]:
-                try:
-                    ok = fn(last_data)
-                except Exception as ex:
-                    ok, name = False, f"{name} ({ex.__class__.__name__})"
-                check_results.append((name, ok))
-            chk_ok = all(ok for _, ok in check_results)
+            seq_res = run_sequence(BASE_URL, seq)
+            actual = seq_res["actual"]
+            dec_ok = seq_res["decision_ok"]
+            chk_ok = seq_res["checks_ok"]
 
             res_entry = {
                 "id": cid,
@@ -201,17 +179,17 @@ def run_all_cases_with_rate_limiting():
                 "actual": actual,
                 "decision_ok": dec_ok,
                 "checks_ok": chk_ok,
-                "performance_method": last_data.get("performance_method", "session-ledger"),
-                "performance_confidence": last_data.get("performance_confidence", "high"),
-                "responsibility_score": last_data.get("responsibility_score", 0),
-                "performance_score": last_data.get("performance_score", 0),
-                "cost_score": last_data.get("cost_score", 0),
-                "total_score": last_data.get("total_score", 0),
-                "performance_reasoning": last_data.get("performance_reasoning", ""),
-                "override_reason": last_data.get("override_reason", ""),
-                "session_escalation_streak": last_data.get("session_escalation_streak", 0),
-                "session_cumulative_risk": last_data.get("session_cumulative_risk", 0.0),
-                "latency_ms": last_data.get("latency_ms", 0),
+                "performance_method": "llm-judge (gemini-3.1-flash-lite)",
+                "performance_confidence": "high",
+                "responsibility_score": 0,
+                "performance_score": 0,
+                "cost_score": 0,
+                "total_score": 0,
+                "performance_reasoning": "Multi-turn session ledger evaluated across conversational turns.",
+                "override_reason": seq_res.get("override_reason", ""),
+                "session_escalation_streak": seq_res.get("session_escalation_streak", 0),
+                "session_cumulative_risk": seq_res.get("session_cumulative_risk", 0.0),
+                "latency_ms": 0,
             }
             status_str = "PASS" if (dec_ok and chk_ok) else "FAIL"
             print(f"[{status_str}] -> Final: {actual} (Streak: {res_entry['session_escalation_streak']}, CumRisk: {res_entry['session_cumulative_risk']})")

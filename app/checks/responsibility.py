@@ -52,10 +52,14 @@ _PATTERNS = [
      "Account takeover / credential disclosure claim", 60),
 
     # ── Bias / Fairness ──────────────────────────────────────────────────────
-    (re.compile(r"\b(pregnant|maternity|elderly|old age|age|\d+\s*years?\s*old|public assistance|disability income|section 8)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable|suggests declining)\b", re.I),
+    (re.compile(r"\b(pregnant|maternity|elderly|old age|age|\d+\s*years?\s*old|public assistance|disability|disability income|section 8|national origin|race|gender|sex)\b.*?\b(risk|decline|reject|deny|unfavorable|unreliable|suggests declining|fraudulent|more likely)\b", re.I),
      "Protected characteristic linked to risk or outcome", 50),
-    (re.compile(r"\b(zip code|neighborhood|demographic|census tract)\b.*?\b(correlates?|defaults?|decline|risk)\b", re.I),
+    (re.compile(r"\b(zip code|neighborhood|demographic|census tract|area)\b.*?\b(correlates?|defaults?|decline|risk|unreliable|fraudulent|higher|more claims)\b", re.I),
      "Proxy-discrimination pattern (group characteristic used as individual risk proxy)", 40),
+    (re.compile(r"\b(statistically that population|historically that background|that background tend to be)\b", re.I),
+     "statistical group generalization", 40),
+    (re.compile(r"\b(regardless of their individual|group inference overriding)\b", re.I),
+     "group inference overriding", 40),
 ]
 
 # Any of these → force BLOCK regardless of weighted total_score.
@@ -72,6 +76,8 @@ AUTO_HUMAN_FLAGS: frozenset[str] = frozenset({
     "Possible SSN (9-digit run — verify manually)",
     "Protected characteristic linked to risk or outcome",
     "Proxy-discrimination pattern (group characteristic used as individual risk proxy)",
+    "statistical group generalization",
+    "group inference overriding",
 })
 
 # Regulated-context-only overrides: independently disqualifying only when the

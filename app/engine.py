@@ -107,10 +107,10 @@ def _apply_hard_overrides(
     # explicit no-downgrade guard. A score-based BLOCK is never demoted here.
     if current_decision not in ("BLOCK", "HUMAN"):
         for flag in responsibility.flags:
-            if any(auto_flag in flag for auto_flag in AUTO_HUMAN_FLAGS):
+            if any(auto_flag.lower() in flag.lower() for auto_flag in AUTO_HUMAN_FLAGS):
                 return "HUMAN", _reason(
                     "HUMAN",
-                    f"noisy PII pattern — verify manually before routing — '{flag}'",
+                    f"noisy PII or bias pattern — verify manually before routing — '{flag}'",
                 )
 
         if performance and performance.confidence in ("high", "medium") and performance.score >= 70:

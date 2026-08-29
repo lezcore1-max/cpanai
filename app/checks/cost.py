@@ -23,7 +23,7 @@ _TOKENS_PER_WORD = 1.3
 
 def check_cost(*args, **kwargs) -> CostResult:
     response = ""
-    budget_tokens = 220
+    budget_tokens = 60
 
     for a in args:
         if isinstance(a, str):
