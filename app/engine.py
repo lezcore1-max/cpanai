@@ -95,8 +95,8 @@ def _apply_hard_overrides(
             f"unauthorized account access / credential fabrication (safety concern flagged) — '{performance.reasoning}'",
         )
 
-    # Extreme ungroundedness override (requires high or medium confidence).
-    if performance and performance.confidence in ("high", "medium") and performance.score >= 90:
+    # Extreme ungroundedness override (requires grounded context contradiction or high-confidence wild claim).
+    if performance and not performance.no_context and performance.confidence in ("high", "medium") and performance.score >= 90:
         return "BLOCK", _reason(
             "BLOCK",
             f"extreme ungroundedness/hallucination (performance risk {performance.score}/100) — '{performance.reasoning}'",
