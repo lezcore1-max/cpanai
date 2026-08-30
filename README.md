@@ -1,5 +1,7 @@
 # ControlPlane
 
+🌐 **Live Console:** [https://cpanai-production.up.railway.app/#console](https://cpanai-production.up.railway.app/#console)
+
 A real-time risk inspection layer for enterprise AI systems. Every AI response
 passes through three checks (responsibility/PII & bias, performance/groundedness,
 cost) before it reaches a person, gets a weighted risk score, and is routed
