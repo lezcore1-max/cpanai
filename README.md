@@ -26,7 +26,11 @@ weights, thresholds, and execution modes per use case.
    - Responsibility driving risk -> PII redaction (`[SSN REDACTED]`, etc.)
    - Performance driving risk -> Appends verification caveat disclaimer
    - Cost driving risk -> Word-count trim with truncation notice
-5. **Execution Pipelines & Latency Budget SLA:**
+5. **Multi-Turn Session Ledger & Agentic Actions (`app/session.py`):**
+   - Stateful risk tracking with exponential decay (`decay=0.7`) across sequential turns.
+   - 3-consecutive-flag streak escalation triggering mandatory human review.
+   - Irreversible agentic tool executions (`action_reversible=False`) enforce a mandatory `HUMAN` review floor.
+6. **Execution Pipelines & Latency Budget SLA:**
    - **Pre-response Gate (blocking):** `POST /api/inspect` runs checks concurrently (`asyncio.gather`), measuring wall-clock execution against `latency_budget_ms`.
    - **Post-hoc Audit (async):** `POST /api/inspect-async` returns immediately with a queued ID for non-blocking post-hoc pipelines, running inspection in a background task.
 
@@ -37,40 +41,79 @@ frontend/              static UI, calls API, handles polling for async post-hoc 
 app/
   config.py            per-use-case policy: weights, thresholds, latency budgets, token limits
   checks/
-    responsibility.py  PII + bias regex detection (fast, deterministic)
-    performance.py     LLM-as-judge groundedness & safety check via gemini-3.1-flash-lite
-    cost.py            token estimate vs. per-use-case budget
+    responsibility.py  PII + bias regex detection (fast, deterministic structural patterns)
+    performance.py     LLM-as-judge groundedness, safety & semantic bias via gemini-3.1-flash-lite
+    cost.py            token estimate vs. per-use-case budget (60-token baseline)
   engine.py            runs checks concurrently, compound scoring, hard-override rules
-  fixes.py             real auto-correction for FIX decisions (PII, hallucination caveat, cost trim)
-  storage.py          SQLite audit log with migrations & reviewer feedback metrics
-  samples.py          canned demo scenarios per use case
-  main.py             FastAPI app with sync/async endpoints and background tasks
+  session.py           multi-turn risk decay ledger, streak escalation, irreversible action tracking
+  fixes.py             real auto-correction for FIX decisions (PII redaction, caveat, cost trim)
+  storage.py           SQLite audit log with migrations & reviewer feedback metrics
+  samples.py           canned demo scenarios per use case
+  main.py              FastAPI app with sync/async endpoints and background tasks
+test_suite_75.py       comprehensive 75-case feature and regression benchmark suite
+build_pdf_75.py        automated benchmark runner and 12-column ReportLab PDF generator
 ```
 
-## Running it
+## Running Locally
+
+### 1. Install Dependencies
 
 ```bash
 cd controlplane
 pip install -r requirements.txt
-
-# optional but recommended — without it, the performance check
-# falls back to a heuristic scan instead of calling Gemini
-export GEMINI_API_KEY=AIza...
-
-uvicorn app.main:app --reload
 ```
 
-Open http://127.0.0.1:8000 — the FastAPI app serves the frontend directly.
+### 2. Configure Gemini API Key (Recommended)
 
-## API
+Set your Google AI Studio API key as an environment variable or in a `.env` file:
 
-| Endpoint | Description |
-|---|---|
-| `GET /api/use-cases` | List all configured use case policies |
-| `GET /api/samples/{use_case}` | Canned demo scenarios for a use case |
-| `POST /api/inspect` | Blocking inspection pipeline (pre-response gate) |
-| `POST /api/inspect-async` | Asynchronous post-hoc audit pipeline (queued background execution) |
-| `GET /api/audit-log` | Full inspection history |
-| `GET /api/audit-log/{id}` | Poll single audit log entry by ID |
-| `POST /api/audit-log/{id}/review` | Reviewer confirms/overrides a decision |
-| `GET /api/metrics` | Decision counts + reviewer-confirmed accuracy |
+**macOS / Linux:**
+```bash
+export GEMINI_API_KEY="your_api_key_here"
+```
+
+**Windows PowerShell:**
+```powershell
+$env:GEMINI_API_KEY="your_api_key_here"
+```
+
+> *Note: If no API key is provided, the engine gracefully falls back to deterministic heuristic scans.*
+
+### 3. Start the FastAPI Server
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Open **`http://127.0.0.1:8000`** in your browser — the FastAPI app serves the interactive web console directly.
+
+---
+
+## Running the 75-Case Benchmark Suite
+
+Verify the complete feature set (single turns, multi-turn decay, agentic action gates, feedback loops):
+
+```bash
+# Run automated test suite against local server
+python test_suite_75.py --base-url http://127.0.0.1:8000
+
+# Run full benchmark and compile 7-page PDF report
+python build_pdf_75.py
+```
+
+---
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|---|:---:|---|
+| `/api/use-cases` | `GET` | List all configured use case policies, weights, and thresholds |
+| `/api/samples/{use_case}` | `GET` | Canned demo scenarios for a specific use case |
+| `/api/inspect` | `POST` | Blocking inspection pipeline (pre-response gate with session support) |
+| `/api/inspect-async` | `POST` | Asynchronous post-hoc audit pipeline (queued background execution) |
+| `/api/audit-log` | `GET` | Full inspection history |
+| `/api/audit-log/{id}` | `GET` | Poll single audit log entry by ID |
+| `/api/audit-log/{id}/review` | `POST` | Reviewer confirms or overrides an engine decision |
+| `/api/metrics` | `GET` | Decision counts + reviewer-confirmed accuracy metrics |
+| `/api/metrics/override-patterns` | `GET` | Read-only aggregation of reviewer overrides by reason & category |
+| `/api/metrics/tuning-suggestions` | `GET` | Statistically gated policy calibration suggestions ($N \ge 5$, rate $\ge 30\%$) |
